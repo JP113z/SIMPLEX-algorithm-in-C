@@ -21,6 +21,8 @@ GPtrArray *combo_signs;
 
 // --- Prototipos ---
 void on_generate_clicked(GtkButton *button, gpointer user_data);
+void simplex(GtkWidget *btn, gpointer data);
+void write_file(int vars, int cons, GtkWidget *box_model);
 
 // --- Cerrar todo el programa ---
 void on_close_main_window(GtkWidget *widget, gpointer user_data)
@@ -410,9 +412,10 @@ void on_generate_clicked(GtkButton *button, gpointer user_data)
     gtk_box_pack_start(GTK_BOX(main_vbox), hbox_buttons, FALSE, FALSE, 10);
 
     g_object_set_data_full(G_OBJECT(btn_save), "problem_name", g_strdup(problem_name), g_free);
-
+    GtkWidget *data[3] = {box_model, GINT_TO_POINTER(vars), GINT_TO_POINTER(cons)};
     g_signal_connect(btn_cancel, "clicked", G_CALLBACK(on_cancel_clicked), NULL);
     g_signal_connect(btn_save, "clicked", G_CALLBACK(on_save_clicked), NULL);
+    g_signal_connect(btn_exec, "clicked", G_CALLBACK(simplex), data);
 
     for (int i = 0; i < entry_var_names->len; i++)
     {
@@ -421,6 +424,116 @@ void on_generate_clicked(GtkButton *button, gpointer user_data)
     }
 
     gtk_widget_show_all(second_window);
+}
+
+void write_file(int vars, int cons, GtkWidget *box_model)
+{
+    FILE *f = fopen("simplex_output.tex", "w");
+    if (!f)
+    {
+        perror("fopen tex");
+        return;
+    }
+
+    fprintf(f, "%% Archivo generado automáticamente por simplex.c\n");
+    fprintf(f, "\\documentclass[12pt]{article}\n");
+    fprintf(f, "\\usepackage[utf8]{inputenc}\n");
+    fprintf(f, "\\usepackage{graphicx}\n");
+    fprintf(f, "\\usepackage{array,booktabs}\n");
+    fprintf(f, "\\usepackage[table]{xcolor}\n");
+    fprintf(f, "\\usepackage{longtable}\n");
+    fprintf(f, "\\usepackage{geometry}\n");
+    fprintf(f, "\\usepackage{pdflscape}\n");
+    fprintf(f, "\\usepackage{tikz}\n");
+    fprintf(f, "\\geometry{margin=0.8in}\n");
+    fprintf(f, "\\begin{document}\n");
+
+    // --- Portada ---
+    fprintf(f, "\\begin{center}\n");
+    fprintf(f, "{\\large Instituto Tecnológico de Costa Rica\\\\[1cm]\n");
+    fprintf(f, "\\includegraphics[width=0.4\\textwidth]{TEC.png}\\\\[2cm]\n");
+    fprintf(f, "{\\LARGE \\textbf{Proyecto 4: SIMPLEX}}\\\\[2cm]\n");
+    fprintf(f, "{\\large Investigación de Operaciones\\\\[2cm]\n");
+    fprintf(f, "{\\large Profesor: }\\\\[1cm]\n");
+    fprintf(f, "{\\large Francisco Jose Torres Roja}\\\\[2cm]\n");
+    fprintf(f, "{\\large Integrantes: }\\\\[1cm]\n");
+    fprintf(f, "{\\large Jose Pablo Fernandez Jimenez - 2023117752}\\\\[1cm]\n");
+    fprintf(f, "{\\large Diego Durán Rodríguez - 2022437509}\\\\[2cm]\n");
+    fprintf(f, "{\\large Segundo semestre 2025\\\\[1cm]\n");
+    fprintf(f, "\\end{center}\n\\newpage\n");
+
+    // --- Algoritmo Simplex ---
+    fprintf(f, "\\section*{Algoritmo SIMPLEX}\n");
+    fprintf(f,
+            "El \\textbf{algoritmo SIMPLEX} es un método utilizado para resolver problemas de programación lineal. \n\n"
+
+            "El objetivo es minimizar o maximizar el costo total esperado. \n\n"
+
+            "\\textbf{Variantes del problema:}\n"
+            "\\begin{itemize}\n"
+            "  \\item \\textit{Horizonte finito vs. infinito:} El análisis puede hacerse en un período limitado de tiempo o indefinido.\n"
+            "  \\item \\textit{Determinístico vs. estocástico:} En la versión determinística se conocen los costos y valores de reventa; en la estocástica, se modelan como variables aleatorias.\n"
+            "  \\item \\textit{Reemplazo individual vs. múltiple:} Puede plantearse para un único equipo o para varios equipos en paralelo.\n"
+            "\\end{itemize}\n\n"
+
+            "\\bigskip\n");
+
+    // --- Problema original ---
+    fprintf(f, "\\section*{Problema original}\n");
+    fprintf(f,
+            "El problema original se puede formular como un problema de programación lineal, donde se busca optimizar una función objetivo sujeta a ciertas restricciones.\n\n"
+            "\\bigskip\n");
+
+    // --- Tabla inicial---
+    fprintf(f, "\\section*{Tabla inicial}\n");
+
+    // --- Tablas intermedias ---
+    fprintf(f, "\\section*{Tablas intermedias}\n");
+
+    fprintf(f, "\\newpage\n");
+
+    // --- Tabla final ---
+    fprintf(f, "\\section*{Tabla final}\n");
+
+    // --- Soluciones ---
+    fprintf(f, "\\section*{Soluciones}\n");
+
+    // --- Referencias ---
+    fprintf(f, "\\begin{thebibliography}{9}\n");
+
+    fprintf(f,
+            "\\bibitem{meyer1971} Meyer, R. A. (1971). Equipment replacement under uncertainty. "
+            "\\textit{Management Science, 17}(11), 750--758. "
+            "https://doi.org/10.1287/mnsc.17.11.750\n\n");
+
+    fprintf(f,
+            "\\bibitem{tan2010} Tan, C., \\\\& Hartman, J. (2010). Equipment replacement analysis with an uncertain finite horizon. "
+            "Disponible en: https://econpapers.repec.org/article/tafuiiexx/v\\_3a42\\_3ay\\_3a2010\\_3ai\\_3a5\\_3ap\\_3a342-353.htm\n\n");
+
+    fprintf(f, "\\end{thebibliography}\n");
+
+    fprintf(f, "\\end{document}\n");
+    fclose(f);
+}
+
+void simplex(GtkWidget *btn, gpointer data)
+{
+    GtkWidget **widgets = (GtkWidget **)data;
+    GtkWidget *box_model = widgets[0];
+    int vars = GPOINTER_TO_INT(widgets[1]);
+    int cons = GPOINTER_TO_INT(widgets[2]);
+
+    write_file(vars, cons, box_model);
+
+    // Compilar con pdflatex
+    char cmd[512];
+    snprintf(cmd, sizeof(cmd), "pdflatex -interaction=nonstopmode %s > /dev/null 2>&1", "simplex_output.tex");
+    system(cmd);
+    system(cmd);
+
+    // Abrir PDF en evince (presentación)
+    snprintf(cmd, sizeof(cmd), "evince --presentation simplex_output.pdf &");
+    system(cmd);
 }
 
 // --- Main ---

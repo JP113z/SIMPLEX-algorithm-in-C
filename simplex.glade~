@@ -165,7 +165,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkButton" id="btn_cargar">
+              <object class="GtkButton" id="btn_load">
                 <property name="label" translatable="yes">Cargar</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
