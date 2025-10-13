@@ -1,4 +1,0 @@
-Problema: s
-Variables: 2
-Restricciones: 2
-Nombres: $X_1$,$X_2$
