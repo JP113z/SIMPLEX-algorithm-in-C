@@ -1,0 +1,4 @@
+Problema: A
+Variables: 2
+Restricciones: 2
+Nombres: XD,SO
