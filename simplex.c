@@ -7,6 +7,7 @@ GtkWidget *box_model;
 GtkWidget *spin_vars;
 GtkWidget *spin_constraints;
 GtkWidget *second_window;
+GtkWidget *check_intermediate;
 
 GPtrArray *entry_var_names;
 GPtrArray *labels_obj_vars;
@@ -22,7 +23,7 @@ GPtrArray *combo_signs;
 // --- Prototipos ---
 void on_generate_clicked(GtkButton *button, gpointer user_data);
 void simplex(GtkWidget *btn, gpointer data);
-void write_file(int vars, int cons, GtkWidget *box_model);
+void write_file(int vars, int cons, GtkWidget *box_model, int show_tables);
 
 // --- Cerrar todo el programa ---
 void on_close_main_window(GtkWidget *widget, gpointer user_data)
@@ -348,7 +349,8 @@ void on_generate_clicked(GtkButton *button, gpointer user_data)
         gtk_box_pack_start(GTK_BOX(hbox_obj), entry_coef, FALSE, FALSE, 5);
         g_ptr_array_add(entry_obj_coefs, entry_coef);
 
-        GtkWidget *label_var = gtk_label_new("");
+        const char *var_name = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_var_names, i)));
+        GtkWidget *label_var = gtk_label_new(var_name);
         gtk_box_pack_start(GTK_BOX(hbox_obj), label_var, FALSE, FALSE, 5);
         g_ptr_array_add(labels_obj_vars, label_var);
     }
@@ -374,7 +376,8 @@ void on_generate_clicked(GtkButton *button, gpointer user_data)
             gtk_box_pack_start(GTK_BOX(hbox_con), entry_coef, FALSE, FALSE, 5);
             g_ptr_array_add(entry_con_coefs, entry_coef);
 
-            GtkWidget *label_var = gtk_label_new("");
+            const char *var_name = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_var_names, v)));
+            GtkWidget *label_var = gtk_label_new(var_name);
             gtk_box_pack_start(GTK_BOX(hbox_con), label_var, FALSE, FALSE, 5);
             g_ptr_array_add(fila_labels, label_var);
         }
@@ -401,6 +404,11 @@ void on_generate_clicked(GtkButton *button, gpointer user_data)
     gtk_box_pack_start(GTK_BOX(main_vbox), label_nonneg, FALSE, FALSE, 10);
     update_nonneg_label();
 
+    // Checkbox "Mostrar tablas intermedias"
+    check_intermediate = gtk_check_button_new_with_label("Mostrar tablas intermedias");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_intermediate), FALSE); // desmarcado por defecto
+    gtk_box_pack_start(GTK_BOX(main_vbox), check_intermediate, FALSE, FALSE, 10);
+
     GtkWidget *hbox_buttons = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
     GtkWidget *btn_cancel = gtk_button_new_with_label("Cancelar");
     GtkWidget *btn_save = gtk_button_new_with_label("Guardar");
@@ -426,7 +434,7 @@ void on_generate_clicked(GtkButton *button, gpointer user_data)
     gtk_widget_show_all(second_window);
 }
 
-void write_file(int vars, int cons, GtkWidget *box_model)
+void write_file(int vars, int cons, GtkWidget *box_model, int show_tables)
 {
     FILE *f = fopen("simplex_output.tex", "w");
     if (!f)
@@ -488,7 +496,10 @@ void write_file(int vars, int cons, GtkWidget *box_model)
     fprintf(f, "\\section*{Tabla inicial}\n");
 
     // --- Tablas intermedias ---
-    fprintf(f, "\\section*{Tablas intermedias}\n");
+    if (show_tables)
+    {
+        fprintf(f, "\\section*{Tablas intermedias}\n");
+    }
 
     fprintf(f, "\\newpage\n");
 
@@ -523,7 +534,8 @@ void simplex(GtkWidget *btn, gpointer data)
     int vars = GPOINTER_TO_INT(widgets[1]);
     int cons = GPOINTER_TO_INT(widgets[2]);
 
-    write_file(vars, cons, box_model);
+    gboolean show_tables = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_intermediate));
+    write_file(vars, cons, box_model, show_tables);
 
     // Compilar con pdflatex
     char cmd[512];

@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2025.9.8)  13 OCT 2025 15:46
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2025.9.8)  13 OCT 2025 15:55
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -549,7 +549,7 @@ my insertion and my current dilemma will both disappear.
 ! Misplaced alignment tab character &.
 <recently read> &
                  
-l.52 \bibitem{tan2010} Tan, C., \\&
+l.50 \bibitem{tan2010} Tan, C., \\&
                                     Hartman, J. (2010). Equipment replacemen...
 I can't figure out why you would want to use a tab mark
 here. If you just want an ampersand, the remedy is
@@ -559,7 +559,7 @@ you're probably due for more error messages, and you
 might try typing `S' now just to see what is salvageable.
 
 
-Overfull \hbox (34.91684pt too wide) in paragraph at lines 52--53
+Overfull \hbox (34.91684pt too wide) in paragraph at lines 50--51
 \OT1/cmr/m/n/12 Disponible en: https://econpapers.repec.org/article/tafuiiexx/v
 []3a42[]3ay[]3a2010[]3ai[]3a5[]3ap[]3a342-
  []
@@ -582,7 +582,7 @@ Here is how much of TeX's memory you used:
 pk></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></u
 sr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/shar
 e/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti12.pfb>
-Output written on simplex_output.pdf (3 pages, 139278 bytes).
+Output written on simplex_output.pdf (3 pages, 139094 bytes).
 PDF statistics:
  40 PDF objects out of 1000 (max. 8388607)
  25 compressed objects within 1 object stream
