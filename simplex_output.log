@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2025.9.8)  13 OCT 2025 15:55
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2025.9.8)  14 OCT 2025 15:37
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -545,47 +545,224 @@ my insertion and my current dilemma will both disappear.
 
 [1
 
-{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map} <./TEC.png>] [2]
-! Misplaced alignment tab character &.
-<recently read> &
-                 
-l.50 \bibitem{tan2010} Tan, C., \\&
-                                    Hartman, J. (2010). Equipment replacemen...
-I can't figure out why you would want to use a tab mark
-here. If you just want an ampersand, the remedy is
-simple: Just type `I\&' now. But if some right brace
-up above has ended a previous alignment prematurely,
-you're probably due for more error messages, and you
-might try typing `S' now just to see what is salvageable.
-
-
-Overfull \hbox (34.91684pt too wide) in paragraph at lines 50--51
-\OT1/cmr/m/n/12 Disponible en: https://econpapers.repec.org/article/tafuiiexx/v
-[]3a42[]3ay[]3a2010[]3ai[]3a5[]3ap[]3a342-
+{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map} <./TEC.png>]
+Overfull \hbox (10.26825pt too wide) in paragraph at lines 29--30
+[]\OT1/cmr/m/n/12 El surgimiento del al-go-ritmo Sim-plex marc^^So un antes y u
+n de-spu^^Ses en la op-ti-mizaci^^Son matem^^Satica.
  []
 
-[3] (./simplex_output.aux)
+
+Overfull \hbox (12.11172pt too wide) in paragraph at lines 36--37
+[]\OT1/cmr/m/it/12 Interpretaci^^Son geom^^Setrica clara: \OT1/cmr/m/n/12 El pr
+o-ced-imiento del Sim-plex se basa en con-cep-tos geom^^Setricos
+ []
+
+Runaway argument?
+{
+! Paragraph ended before \text@command was complete.
+<to be read again> 
+                   \par 
+l.46 
+     
+I suspect you've forgotten a `}', causing me to apply this
+control sequence to too much text. How can we recover?
+My plan is to forget the whole thing and hope for the best.
+
+! Too many }'s.
+<recently read> \egroup 
+                        
+l.46 
+     
+You've closed more groups than you opened.
+Such booboos are generally harmless, so keep going.
+
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <12> on input line 47.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <8> on input line 47.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <6> on input line 47.
+! Missing $ inserted.
+<inserted text> 
+                $
+l.49 -2 $X_1$ + -9 $X_2$ + 1 $X_3$ + 9 $X_4$ \leq
+                                                  0 \\
+I've inserted a begin-math/end-math symbol since I think
+you left one out. Proceed, with fingers crossed.
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.50 1/3 $X_
+            1$ + 1 $X_2$ + -1 $X_3$ + -2 $X_4$ \leq 0 \\
+I've inserted a begin-math/end-math symbol since I think
+you left one out. Proceed, with fingers crossed.
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.50 ...$X_1$ + 1 $X_2$ + -1 $X_3$ + -2 $X_4$ \leq
+                                                   0 \\
+I've inserted a begin-math/end-math symbol since I think
+you left one out. Proceed, with fingers crossed.
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.52 \textbf{Y con } $X_
+                        1$, $X_2$, $X_3$, $X_4$ \geq 0\\[0.5cm]
+I've inserted a begin-math/end-math symbol since I think
+you left one out. Proceed, with fingers crossed.
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.52 ...bf{Y con } $X_1$, $X_2$, $X_3$, $X_4$ \geq
+                                                   0\\[0.5cm]
+I've inserted a begin-math/end-math symbol since I think
+you left one out. Proceed, with fingers crossed.
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.54 \section
+             *{Tabla inicial}
+I've inserted a begin-math/end-math symbol since I think
+you left one out. Proceed, with fingers crossed.
+
+[2] [3]
+! Missing $ inserted.
+<inserted text> 
+                $
+l.59 ...en: https://en.wikipedia.org/wiki/Simplex_
+                                                  algorithm
+I've inserted a begin-math/end-math symbol since I think
+you left one out. Proceed, with fingers crossed.
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.60 
+     
+I've inserted a begin-math/end-math symbol since I think
+you left one out. Proceed, with fingers crossed.
+
+! Missing } inserted.
+<inserted text> 
+                }
+l.60 
+     
+I've inserted something that you may have forgotten.
+(See the <inserted text> above.)
+With luck, this will get me unwedged. But if you
+really didn't forget anything, try typing `2' now; then
+my insertion and my current dilemma will both disappear.
+
+
+Underfull \hbox (badness 1810) in paragraph at lines 59--60
+[]\OT1/cmr/bx/n/12 Wikipedia con-trib-u-tors. (2025, 6 oc-tubre). Sim-plex al-g
+o-rithm. \OT1/cmr/bx/it/12 Wikipedia\OT1/cmr/bx/n/12 .
+ []
+
+! Extra }, or forgotten \endgroup.
+\par ...m \@noitemerr {\@@par }\fi \else {\@@par }
+                                                  \fi 
+l.60 
+     
+I've deleted a group-closing symbol because it seems to be
+spurious, as in `$x}$'. But perhaps the } is legitimate and
+you forgot something else, as in `\hbox{$x}'. In such cases
+the way to recover is to insert both the forgotten and the
+deleted material, e.g., by typing `I$}'.
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 61--62
+\OT1/cmr/bx/n/12 i-student-sites/ben-lowery/2022/03/linear-programming-and-the-
+birth-of-the-
+ []
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.63 ...//math.libretexts.org/Bookshelves/Applied_
+                                                  Mathematics/Applied_Finite...
+I've inserted a begin-math/end-math symbol since I think
+you left one out. Proceed, with fingers crossed.
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.64 
+     
+I've inserted a begin-math/end-math symbol since I think
+you left one out. Proceed, with fingers crossed.
+
+! Missing } inserted.
+<inserted text> 
+                }
+l.64 
+     
+I've inserted something that you may have forgotten.
+(See the <inserted text> above.)
+With luck, this will get me unwedged. But if you
+really didn't forget anything, try typing `2' now; then
+my insertion and my current dilemma will both disappear.
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 63--64
+[]\OT1/cmr/bx/n/12 Libretexts. (2022, 18 julio). 4.2: Max-i-miza-tion by the
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 63--64
+\OT1/cmr/bx/n/12 Sim-plex method. \OT1/cmr/bx/it/12 Math-e-mat-ics Li-bre-Texts
+\OT1/cmr/bx/n/12 . Disponible en:
+ []
+
+
+Overfull \hbox (5.59476pt too wide) in paragraph at lines 63--64
+\OT1/cmr/bx/n/12 https://math.libretexts.org/Bookshelves/Applied$[]\OML/cmm/m/i
+t/12 athematics=Applied[]inite[]athematics[]$ 
+ []
+
+! Extra }, or forgotten \endgroup.
+\par ...m \@noitemerr {\@@par }\fi \else {\@@par }
+                                                  \fi 
+l.64 
+     
+I've deleted a group-closing symbol because it seems to be
+spurious, as in `$x}$'. But perhaps the } is legitimate and
+you forgot something else, as in `\hbox{$x}'. In such cases
+the way to recover is to insert both the forgotten and the
+deleted material, e.g., by typing `I$}'.
+
+[4] (./simplex_output.aux)
  ***********
 LaTeX2e <2023-11-01> patch level 1
 L3 programming layer <2024-01-22>
  ***********
  ) 
 Here is how much of TeX's memory you used:
- 12720 strings out of 476182
- 262146 string characters out of 5795596
- 1926975 words of memory out of 5000000
- 34514 multiletter control sequences out of 15000+600000
- 560868 words of font info for 45 fonts, out of 8000000 for 9000
+ 12741 strings out of 476182
+ 262379 string characters out of 5795596
+ 1931975 words of memory out of 5000000
+ 34527 multiletter control sequences out of 15000+600000
+ 563665 words of font info for 54 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
- 84i,5n,87p,418b,222s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 84i,5n,87p,606b,222s stack positions out of 10000i,1000n,20000p,200000b,200000s
  </home/jp113/.texlive2023/texmf-var/fonts/pk/ljfour/jknappen/ec/tcrm1200.600
 pk></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></u
-sr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/shar
-e/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti12.pfb>
-Output written on simplex_output.pdf (3 pages, 139094 bytes).
+sr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbxti10.pfb></usr/s
+hare/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb></usr/share/t
+exlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb></usr/share/texlive/
+texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/share/texlive/texmf-d
+ist/fonts/type1/public/amsfonts/cm/cmr8.pfb></usr/share/texlive/texmf-dist/font
+s/type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type
+1/public/amsfonts/cm/cmti12.pfb>
+Output written on simplex_output.pdf (4 pages, 195313 bytes).
 PDF statistics:
- 40 PDF objects out of 1000 (max. 8388607)
- 25 compressed objects within 1 object stream
+ 68 PDF objects out of 1000 (max. 8388607)
+ 42 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 500000)
  18 words of extra memory for PDF output out of 10000 (max. 10000000)
 

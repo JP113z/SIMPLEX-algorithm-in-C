@@ -23,7 +23,7 @@ GPtrArray *combo_signs;
 // --- Prototipos ---
 void on_generate_clicked(GtkButton *button, gpointer user_data);
 void simplex(GtkWidget *btn, gpointer data);
-void write_file(int vars, int cons, GtkWidget *box_model, int show_tables);
+void write_file(int vars, int cons, GtkWidget *box_model, int show_tables, const char *problem_name);
 
 // --- Cerrar todo el programa ---
 void on_close_main_window(GtkWidget *widget, gpointer user_data)
@@ -318,7 +318,7 @@ void on_generate_clicked(GtkButton *button, gpointer user_data)
     {
         GtkWidget *entry = gtk_entry_new();
         char def_name[16];
-        snprintf(def_name, sizeof(def_name), "X%d", i);
+        snprintf(def_name, sizeof(def_name), "$X_%d$", i);
         gtk_entry_set_text(GTK_ENTRY(entry), def_name);
         gtk_entry_set_width_chars(GTK_ENTRY(entry), 5);
         gtk_box_pack_start(GTK_BOX(hbox_names), entry, FALSE, FALSE, 5);
@@ -358,6 +358,7 @@ void on_generate_clicked(GtkButton *button, gpointer user_data)
     gtk_box_pack_start(GTK_BOX(main_vbox), hbox_obj, FALSE, FALSE, 0);
 
     GtkWidget *label_sujeto = gtk_label_new("Sujeto a:");
+    gtk_widget_set_halign(label_sujeto, GTK_ALIGN_START);
     gtk_box_pack_start(GTK_BOX(main_vbox), label_sujeto, FALSE, FALSE, 5);
 
     for (int r = 0; r < cons; r++)
@@ -406,7 +407,7 @@ void on_generate_clicked(GtkButton *button, gpointer user_data)
 
     // Checkbox "Mostrar tablas intermedias"
     check_intermediate = gtk_check_button_new_with_label("Mostrar tablas intermedias");
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_intermediate), FALSE); // desmarcado por defecto
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_intermediate), FALSE);
     gtk_box_pack_start(GTK_BOX(main_vbox), check_intermediate, FALSE, FALSE, 10);
 
     GtkWidget *hbox_buttons = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
@@ -420,10 +421,16 @@ void on_generate_clicked(GtkButton *button, gpointer user_data)
     gtk_box_pack_start(GTK_BOX(main_vbox), hbox_buttons, FALSE, FALSE, 10);
 
     g_object_set_data_full(G_OBJECT(btn_save), "problem_name", g_strdup(problem_name), g_free);
-    GtkWidget *data[3] = {box_model, GINT_TO_POINTER(vars), GINT_TO_POINTER(cons)};
+    g_object_set_data_full(G_OBJECT(btn_exec), "problem_name", g_strdup(problem_name), g_free);
     g_signal_connect(btn_cancel, "clicked", G_CALLBACK(on_cancel_clicked), NULL);
     g_signal_connect(btn_save, "clicked", G_CALLBACK(on_save_clicked), NULL);
-    g_signal_connect(btn_exec, "clicked", G_CALLBACK(simplex), data);
+    GtkWidget **data = g_new(GtkWidget *, 3);
+    data[0] = box_model;
+    data[1] = GINT_TO_POINTER(vars);
+    data[2] = GINT_TO_POINTER(cons);
+
+    g_signal_connect_data(btn_exec, "clicked", G_CALLBACK(simplex), data,
+                          (GClosureNotify)g_free, 0);
 
     for (int i = 0; i < entry_var_names->len; i++)
     {
@@ -434,7 +441,7 @@ void on_generate_clicked(GtkButton *button, gpointer user_data)
     gtk_widget_show_all(second_window);
 }
 
-void write_file(int vars, int cons, GtkWidget *box_model, int show_tables)
+void write_file(int vars, int cons, GtkWidget *box_model, int show_tables, const char *problem_name)
 {
     FILE *f = fopen("simplex_output.tex", "w");
     if (!f)
@@ -473,24 +480,93 @@ void write_file(int vars, int cons, GtkWidget *box_model, int show_tables)
     // --- Algoritmo Simplex ---
     fprintf(f, "\\section*{Algoritmo SIMPLEX}\n");
     fprintf(f,
-            "El \\textbf{algoritmo SIMPLEX} es un método utilizado para resolver problemas de programación lineal. \n\n"
+            "El \\textbf{algoritmo SIMPLEX} es uno de los métodos más importantes y utilizados en el campo de la optimización lineal. "
+            "Fue desarrollado por George Bernard Dantzig en 1947, en el contexto de investigaciones relacionadas con la planificación "
+            "logística y de recursos durante la posguerra. Dantzig, un matemático y científico estadounidense, ideó este método como una "
+            "herramienta para resolver problemas de programación lineal, un área que busca optimizar (maximizar o minimizar) una función "
+            "objetivo sujeta a un conjunto de restricciones lineales. \n\n"
 
-            "El objetivo es minimizar o maximizar el costo total esperado. \n\n"
+            "El surgimiento del algoritmo Simplex marcó un antes y un después en la optimización matemática. Antes de su creación, no existía "
+            "un procedimiento general y sistemático que permitiera resolver eficientemente problemas de gran escala con múltiples variables y "
+            "restricciones. Dantzig propuso un enfoque geométrico basado en la observación de que la solución óptima de un problema lineal se "
+            "encuentra en uno de los vértices o puntos extremos del poliedro factible, es decir, del conjunto de soluciones que cumplen todas "
+            "las restricciones del problema. \n\n"
 
-            "\\textbf{Variantes del problema:}\n"
+            "El método Simplex avanza de un vértice a otro a través de las aristas del poliedro, mejorando progresivamente el valor de la "
+            "función objetivo hasta encontrar el óptimo. Cada movimiento corresponde a un cambio de una variable básica en la solución, lo "
+            "que permite al algoritmo recorrer el espacio factible de manera ordenada y eficiente. \n\n"
+
+            "\\textbf{Entre las principales propiedades del algoritmo Simplex destacan las siguientes:}\n"
             "\\begin{itemize}\n"
-            "  \\item \\textit{Horizonte finito vs. infinito:} El análisis puede hacerse en un período limitado de tiempo o indefinido.\n"
-            "  \\item \\textit{Determinístico vs. estocástico:} En la versión determinística se conocen los costos y valores de reventa; en la estocástica, se modelan como variables aleatorias.\n"
-            "  \\item \\textit{Reemplazo individual vs. múltiple:} Puede plantearse para un único equipo o para varios equipos en paralelo.\n"
+            "  \\item \\textit{Eficiencia práctica:} aunque en teoría su complejidad puede ser exponencial en el peor de los casos, en la práctica el algoritmo es extremadamente eficiente y puede resolver problemas con miles de variables y restricciones en tiempos incluso lineales.\n"
+            "  \\item \\textit{Interpretación geométrica clara:} El procedimiento del Simplex se basa en conceptos geométricos simples, lo que facilita su comprensión y visualización en espacios de baja dimensión.\n"
+            "  \\item \\textit{Importancia histórica y teórica:} el Simplex no solo revolucionó la programación lineal, sino que también sentó las bases para la aparición de otros métodos de optimización, como los algoritmos de punto interior y técnicas modernas de optimización convexa.\n"
             "\\end{itemize}\n\n"
 
             "\\bigskip\n");
 
     // --- Problema original ---
     fprintf(f, "\\section*{Problema original}\n");
-    fprintf(f,
-            "El problema original se puede formular como un problema de programación lineal, donde se busca optimizar una función objetivo sujeta a ciertas restricciones.\n\n"
-            "\\bigskip\n");
+    fprintf(f, "Nombre del problema: \\textbf{%s}\\\\[0.3cm]\n", problem_name);
+    fprintf(f, "El problema original se puede formular como un problema de programación lineal, donde se busca optimizar una función objetivo sujeta a ciertas restricciones.\n\n");
+
+    // Obtener tipo de optimización
+    int opt_type = gtk_combo_box_get_active(GTK_COMBO_BOX(combo_opt_global));
+    fprintf(f, "\\textbf\n\n{%s Z = } ", opt_type == 0 ? "Maximizar" : "Minimizar");
+
+    // --- Escribir función objetivo ---
+    for (int i = 0; i < vars; i++)
+    {
+        const char *coef = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_obj_coefs, i)));
+        const char *var = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_var_names, i)));
+
+        if (i > 0)
+            fprintf(f, " + ");
+        fprintf(f, "%s %s", coef, var);
+    }
+
+    fprintf(f, "\\\\[0.5cm]\n");
+
+    // --- Escribir restricciones ---
+    fprintf(f, "\\textbf{Sujeto a:}\\\\\n");
+
+    int idx = 0;
+    for (int r = 0; r < cons; r++)
+    {
+        for (int v = 0; v < vars; v++)
+        {
+            const char *coef = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_con_coefs, idx++)));
+            const char *var = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_var_names, v)));
+
+            if (v > 0)
+                fprintf(f, " + ");
+            fprintf(f, "%s %s", coef, var);
+        }
+
+        GtkWidget *combo = g_ptr_array_index(combo_signs, r);
+        int sign = gtk_combo_box_get_active(GTK_COMBO_BOX(combo));
+        const char *sign_text = (sign == 0) ? "\\leq" : (sign == 1) ? "="
+                                                                    : "\\geq";
+
+        GtkWidget *rhs = g_ptr_array_index(entry_rhs_list, r);
+        const char *rhs_val = gtk_entry_get_text(GTK_ENTRY(rhs));
+
+        fprintf(f, " %s %s \\\\\n", sign_text, rhs_val);
+    }
+
+    // --- Escribir condición de no negatividad ---
+    fprintf(f, "\\\\[0.3cm]\n");
+    fprintf(f, "\\textbf{Y con } ");
+
+    for (int i = 0; i < vars; i++)
+    {
+        const char *var = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_var_names, i)));
+        fprintf(f, "%s", var);
+        if (i < vars - 1)
+            fprintf(f, ", ");
+    }
+
+    fprintf(f, " \\geq 0\\\\[0.5cm]\n\\bigskip\n");
 
     // --- Tabla inicial---
     fprintf(f, "\\section*{Tabla inicial}\n");
@@ -513,29 +589,34 @@ void write_file(int vars, int cons, GtkWidget *box_model, int show_tables)
     fprintf(f, "\\begin{thebibliography}{9}\n");
 
     fprintf(f,
-            "\\bibitem{meyer1971} Meyer, R. A. (1971). Equipment replacement under uncertainty. "
-            "\\textit{Management Science, 17}(11), 750--758. "
-            "https://doi.org/10.1287/mnsc.17.11.750\n\n");
+            "\\bibitem{wikipedia2025} Wikipedia contributors. (2025, 6 octubre). Simplex algorithm. "
+            "\\textit{Wikipedia}. Disponible en: https://en.wikipedia.org/wiki/Simplex_algorithm\n\n");
 
     fprintf(f,
-            "\\bibitem{tan2010} Tan, C., \\\\& Hartman, J. (2010). Equipment replacement analysis with an uncertain finite horizon. "
-            "Disponible en: https://econpapers.repec.org/article/tafuiiexx/v\\_3a42\\_3ay\\_3a2010\\_3ai\\_3a5\\_3ap\\_3a342-353.htm\n\n");
+            "\\bibitem{benlowery2022} Ben-Lowery. (2022, 4 abril). Linear Programming and the birth of the Simplex Algorithm. "
+            "\\textit{Ben Lowery @ STOR-i}. Disponible en: https://www.lancaster.ac.uk/stor-i-student-sites/ben-lowery/2022/03/linear-programming-and-the-birth-of-the-simplex-algorithm/\n\n");
+
+    fprintf(f,
+            "\\bibitem{libretexts2022} Libretexts. (2022, 18 julio). 4.2: Maximization by the Simplex method. "
+            "\\textit{Mathematics LibreTexts}. Disponible en: https://math.libretexts.org/Bookshelves/Applied_Mathematics/Applied_Finite_Mathematics_%%28Sekhon_and_Bloom%%29/04%%3A_Linear_Programming_The_Simplex_Method/4.02%%3A_Maximization_By_The_Simplex_Method\n\n");
 
     fprintf(f, "\\end{thebibliography}\n");
-
     fprintf(f, "\\end{document}\n");
     fclose(f);
 }
 
 void simplex(GtkWidget *btn, gpointer data)
 {
+    const char *problem_name = g_object_get_data(G_OBJECT(btn), "problem_name");
+    if (!problem_name)
+        problem_name = "SinNombre";
     GtkWidget **widgets = (GtkWidget **)data;
     GtkWidget *box_model = widgets[0];
     int vars = GPOINTER_TO_INT(widgets[1]);
     int cons = GPOINTER_TO_INT(widgets[2]);
 
     gboolean show_tables = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_intermediate));
-    write_file(vars, cons, box_model, show_tables);
+    write_file(vars, cons, box_model, show_tables, problem_name);
 
     // Compilar con pdflatex
     char cmd[512];
