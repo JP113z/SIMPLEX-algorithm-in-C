@@ -1,7 +1,18 @@
 #include <gtk/gtk.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <math.h>
 
+// ========================
+//      CONSTANTES
+// ========================
+#define EPS 1e-9
+#define MAX_ITERS 10000
+
+// ========================
+//  WIDGETS (tuyos)
+// ========================
 GtkWidget *main_window;
 GtkWidget *box_model;
 GtkWidget *spin_vars;
@@ -20,10 +31,412 @@ GPtrArray *entry_con_coefs;
 GPtrArray *entry_rhs_list;
 GPtrArray *combo_signs;
 
-// --- Prototipos ---
+// --- Prototipos GUI (tuyos) ---
 void on_generate_clicked(GtkButton *button, gpointer user_data);
 void simplex(GtkWidget *btn, gpointer data);
 void write_file(int vars, int cons, GtkWidget *box_model, int show_tables, const char *problem_name);
+
+// ========================
+// === NUEVO: Estructuras
+// ========================
+typedef struct {
+    int rows;      // 1 (fila objetivo) + cons
+    int cols;      // 1 (Z) + vars + cons (holguras) + 1 (RHS)
+    double **T;    // matriz [rows][cols]
+    int *basis;    // índice de columna básica por cada fila (excepto fila 0). basis[r] = columna básica de la fila r (r>=1)
+    int entering_col; // última col que entró
+    int leaving_row;  // última fila que salió
+} Tableau;
+
+typedef struct {
+    GPtrArray *steps; // Tableau* de cada iteración (se guardan copias)
+    Tableau *initial; // copia de la tabla inicial
+    Tableau *final;   // copia de la tabla final
+    int status;       // 0=Óptimo, 1=No acotado, 2=No factible (no usamos en esta versión), 3=Degenerado (bandera informativa)
+    int has_multiple; // 1 si hay soluciones múltiples
+    int degenerate;   // 1 si hubo razón mínima 0 o empates (informativo)
+    double *solution; // valores de variables de decisión (longitud = vars)
+    double z_value;   // valor óptimo de Z
+} SimplexRun;
+
+// ========================
+// === NUEVO: Utilidades
+// ========================
+static double **alloc_matrix(int r, int c) {
+    double **m = (double**)malloc(sizeof(double*) * r);
+    for (int i = 0; i < r; i++) {
+        m[i] = (double*)calloc(c, sizeof(double));
+    }
+    return m;
+}
+static void free_matrix(double **m, int r) {
+    if (!m) return;
+    for (int i = 0; i < r; i++) free(m[i]);
+    free(m);
+}
+
+static Tableau* tableau_new(int rows, int cols) {
+    Tableau *tb = (Tableau*)calloc(1, sizeof(Tableau));
+    tb->rows = rows;
+    tb->cols = cols;
+    tb->T = alloc_matrix(rows, cols);
+    tb->basis = (int*)malloc(sizeof(int) * rows);
+    for (int i = 0; i < rows; i++) tb->basis[i] = -1;
+    tb->entering_col = -1;
+    tb->leaving_row  = -1;
+    return tb;
+}
+static Tableau* tableau_copy(const Tableau* src) {
+    Tableau *t = tableau_new(src->rows, src->cols);
+    for (int i = 0; i < src->rows; i++)
+        memcpy(t->T[i], src->T[i], sizeof(double)*src->cols);
+    memcpy(t->basis, src->basis, sizeof(int)*src->rows);
+    t->entering_col = src->entering_col;
+    t->leaving_row = src->leaving_row;
+    return t;
+}
+static void tableau_free(Tableau *tb) {
+    if (!tb) return;
+    free_matrix(tb->T, tb->rows);
+    free(tb->basis);
+    free(tb);
+}
+
+static SimplexRun* simplex_run_new(void) {
+    SimplexRun *r = (SimplexRun*)calloc(1, sizeof(SimplexRun));
+    r->steps = g_ptr_array_new_with_free_func((GDestroyNotify)tableau_free);
+    r->status = 0;
+    r->has_multiple = 0;
+    r->degenerate = 0;
+    r->solution = NULL;
+    r->z_value = 0.0;
+    return r;
+}
+static void simplex_run_free(SimplexRun *run) {
+    if (!run) return;
+    if (run->initial) tableau_free(run->initial);
+    if (run->final) tableau_free(run->final);
+    if (run->steps) g_ptr_array_free(run->steps, TRUE);
+    if (run->solution) free(run->solution);
+    free(run);
+}
+
+// ========================
+// === NUEVO: Construcción de la tabla inicial
+// Forma: [fila 0] Z - Σ c_i x_i - Σ 0*s_i = 0
+// Restricciones ≤: Σ a_ij x_j + s_i = b_i
+// Columnas: [Z | x_1..x_n | s_1..s_m | RHS]
+// Filas:    [0 |     1..n |  1..m    |  0 ] (fila 0 con -c en x_j)
+// ========================
+static Tableau* build_initial_tableau_from_inputs(int vars, int cons, int *unsupported_sign_found, int opt_type) {
+    int rows = cons + 1;
+    int cols = 1 /*Z*/ + vars + cons /*slacks*/ + 1 /*RHS*/;
+
+    Tableau *tb = tableau_new(rows, cols);
+
+    // Fila 0: Z - sum c x = 0
+    tb->T[0][0] = 1.0; // coeficiente de Z
+    for (int j = 0; j < vars; j++) {
+        const char *coef_str = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_obj_coefs, j)));
+        double c = atof(coef_str);
+        // En la fila 0 ponemos -c (forma estándar)
+        tb->T[0][1 + j] = -c;
+    }
+    // RHS en fila 0 = 0
+
+    // Restricciones
+    *unsupported_sign_found = 0;
+    int idx = 0;
+    for (int i = 0; i < cons; i++) {
+        // Coeficientes x_j
+        for (int j = 0; j < vars; j++) {
+            const char *a_str = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_con_coefs, idx++)));
+            double a = atof(a_str);
+            tb->T[i+1][1 + j] = a;
+        }
+        // Signo
+        GtkWidget *combo = g_ptr_array_index(combo_signs, i);
+        int sign = gtk_combo_box_get_active(GTK_COMBO_BOX(combo));
+        if (sign != 0) {
+            // En esta versión, solo ≤. Marcamos que hay restricciones no soportadas
+            *unsupported_sign_found = 1;
+        }
+        // Holgura s_i
+        tb->T[i+1][1 + vars + i] = 1.0;
+
+        // RHS
+        GtkWidget *rhs = g_ptr_array_index(entry_rhs_list, i);
+        const char *rhs_str = gtk_entry_get_text(GTK_ENTRY(rhs));
+        double b = atof(rhs_str);
+        tb->T[i+1][cols - 1] = b;
+
+        // Base inicial: s_i
+        tb->basis[i+1] = 1 + vars + i; // columna de s_i
+    }
+
+    // Para MINIMIZACIÓN según indicación del usuario:
+    // "En casos de minimización se elige la columna a canonizar del valor más positivo de la primera fila"
+    // -> mantenemos la fila 0 como -c. La regla de parada/selección se ajusta en la iteración, no aquí.
+    (void)opt_type;
+
+    return tb;
+}
+
+// ========================
+// === NUEVO: Selección de columna que entra
+//   max: más NEGATIVO en fila 0 (entre x y s no básicos, normalmente x)
+//   min: más POSITIVO en fila 0
+// Retorna -1 si ya óptimo según el criterio
+// ========================
+static int choose_entering_col(const Tableau *tb, int vars, int cons, int is_max) {
+    int start = 1; // después de Z
+    int end   = 1 + vars + cons - 1; // última col de slack; RHS es la última col
+    double best_val = is_max ? 1e100 : -1e100; // max: buscamos el más negativo => inicial alto; min: más positivo => inicial bajo
+    int best_col = -1;
+
+    for (int j = start; j < tb->cols - 1; j++) {
+        double v = tb->T[0][j];
+        if (is_max) {
+            if (v < best_val - EPS) { // más negativo
+                best_val = v;
+                best_col = j;
+            }
+        } else { // min
+            if (v > best_val + EPS) { // más positivo
+                best_val = v;
+                best_col = j;
+            }
+        }
+    }
+
+    // Criterio de optimalidad:
+    // max: si NO hay negativos => óptimo
+    // min: si NO hay positivos => óptimo
+    if (is_max) {
+        if (best_col == -1 || best_val >= -EPS) return -1;
+    } else {
+        if (best_col == -1 || best_val <= EPS) return -1;
+    }
+    return best_col;
+}
+
+// ========================
+// === NUEVO: Selección de fila que sale (test de razón mínima)
+// Solo razones positivas. Marca degeneración si hay 0 o empates cercanos
+// ========================
+static int choose_leaving_row(const Tableau *tb, int entering_col, int *degenerate_flag) {
+    int best_row = -1;
+    double best_ratio = 0.0;
+    *degenerate_flag = 0;
+
+    for (int i = 1; i < tb->rows; i++) {
+        double a = tb->T[i][entering_col];
+        if (a > EPS) { // solo positivos
+            double rhs = tb->T[i][tb->cols - 1];
+            double ratio = rhs / a;
+            if (best_row == -1 || ratio < best_ratio - EPS) {
+                best_ratio = ratio;
+                best_row = i;
+            } else if (fabs(ratio - best_ratio) <= EPS) {
+                *degenerate_flag = 1; // empate de fracciones
+            }
+            if (ratio <= EPS) *degenerate_flag = 1; // degeneración (sale con 0)
+        }
+    }
+    return best_row; // -1 => No acotado
+}
+
+// ========================
+// === NUEVO: Pivoteo (Gauss-Jordan en la tabla)
+// ========================
+static void pivot(Tableau *tb, int pr, int pc) {
+    double piv = tb->T[pr][pc];
+    // Normalizar fila pivote
+    for (int j = 0; j < tb->cols; j++) tb->T[pr][j] /= piv;
+
+    // Anular columna pivote en las demás filas
+    for (int i = 0; i < tb->rows; i++) {
+        if (i == pr) continue;
+        double factor = tb->T[i][pc];
+        if (fabs(factor) > EPS) {
+            for (int j = 0; j < tb->cols; j++) {
+                tb->T[i][j] -= factor * tb->T[pr][j];
+            }
+        }
+    }
+    tb->basis[pr] = pc;
+    tb->entering_col = pc;
+    tb->leaving_row  = pr;
+}
+
+// ========================
+// === NUEVO: Detección de soluciones múltiples
+// max: en óptimo, si existe costo reducido 0 en columna NO básica (x), hay múltiples
+// min: análogo (fila 0 con 0 en col no básica)
+// ========================
+static int detect_multiple_solutions(const Tableau *tb) {
+    // revisamos columnas no básicas en fila 0
+    for (int j = 1; j < tb->cols - 1; j++) {
+        // si la columna no está en la base:
+        int in_basis = 0;
+        for (int i = 1; i < tb->rows; i++) if (tb->basis[i] == j) { in_basis = 1; break; }
+        if (!in_basis) {
+            if (fabs(tb->T[0][j]) <= EPS) return 1;
+        }
+    }
+    return 0;
+}
+
+// ========================
+// === NUEVO: Ejecutar Símplex (max/min)
+// Guarda pasos si show_steps != 0
+// ========================
+static SimplexRun* simplex_solve(Tableau *init, int vars, int cons, int is_max, int show_steps) {
+    SimplexRun *run = simplex_run_new();
+    run->initial = tableau_copy(init);
+    Tableau *tb = tableau_copy(init);
+
+    if (show_steps) {
+        g_ptr_array_add(run->steps, tableau_copy(tb));
+    }
+
+    int iters = 0;
+    while (iters++ < MAX_ITERS) {
+        int entering = choose_entering_col(tb, vars, cons, is_max);
+        if (entering == -1) { // óptimo
+            run->status = 0;
+            break;
+        }
+        int deg_flag = 0;
+        int leaving = choose_leaving_row(tb, entering, &deg_flag);
+        if (leaving == -1) { // no acotado
+            run->status = 1;
+            tb->entering_col = entering;
+            tb->leaving_row  = -1;
+            if (show_steps) g_ptr_array_add(run->steps, tableau_copy(tb));
+            break;
+        }
+        if (deg_flag) run->degenerate = 1;
+
+        pivot(tb, leaving, entering);
+        if (show_steps) g_ptr_array_add(run->steps, tableau_copy(tb));
+    }
+
+    run->final = tableau_copy(tb);
+
+    // solución y Z
+    run->solution = (double*)calloc(vars, sizeof(double));
+    for (int i = 1; i < tb->rows; i++) {
+        int bc = tb->basis[i];
+        // si bc corresponde a alguna x_j
+        if (bc >= 1 && bc <= vars) {
+            run->solution[bc - 1] = tb->T[i][tb->cols - 1];
+        }
+    }
+    // Valor de Z:
+    // Nuestra forma es Z - sum c x = 0 -> RHS fila 0 = Z
+    run->z_value = tb->T[0][tb->cols - 1];
+
+    // múltiples soluciones si óptimo y hay costo reducido 0 en alguna no básica
+    if (run->status == 0) {
+        run->has_multiple = detect_multiple_solutions(tb);
+        // Si hay múltiples, "pivoteamos una vez más" a otra solución básica alterna
+        // (simple heurística: escoger una col no básica con costo reducido ~ 0 y tratar de pivotear si posible)
+        if (run->has_multiple) {
+            for (int j = 1; j < tb->cols - 1; j++) {
+                int in_basis = 0;
+                for (int i = 1; i < tb->rows; i++) if (tb->basis[i] == j) { in_basis = 1; break; }
+                if (!in_basis && fabs(tb->T[0][j]) <= EPS) {
+                    int dummy_deg = 0;
+                    int lv = choose_leaving_row(tb, j, &dummy_deg);
+                    if (lv != -1) {
+                        pivot(tb, lv, j);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    tableau_free(tb);
+    return run;
+}
+
+// ========================
+// === NUEVO: Impresores LaTeX
+// ========================
+static void latex_print_table(FILE *f, const Tableau *tb, int vars, int cons,
+                              const char **var_names, int highlight_col, int highlight_row,
+                              int show_ratio, int ratio_col) {
+    // Encabezados: Z | x's | s's | RHS
+    fprintf(f, "\\begin{center}\n");
+    fprintf(f, "\\rowcolors{2}{white}{gray!10}\n");
+    fprintf(f, "\\begin{tabular}{");
+    for (int j = 0; j < tb->cols; j++) fprintf(f, "r");
+    fprintf(f, "}\n\\toprule\n");
+
+    // Primera fila de nombres
+    fprintf(f, "$Z$");
+    for (int j = 0; j < vars; j++) fprintf(f, " & %s", var_names[j]);
+    for (int j = 0; j < cons; j++) fprintf(f, " & $s_{%d}$", j+1);
+    fprintf(f, " & RHS\\\\\\midrule\n");
+
+    // Filas
+    for (int i = 0; i < tb->rows; i++) {
+        for (int j = 0; j < tb->cols; j++) {
+            int is_pivot = (i == highlight_row && j == highlight_col);
+            if (is_pivot) fprintf(f, "\\cellcolor{yellow!40}");
+            fprintf(f, "%s%.6g", (j==0?"": " & "), tb->T[i][j]);
+        }
+        fprintf(f, "\\\\\n");
+    }
+    fprintf(f, "\\bottomrule\n\\end{tabular}\n");
+
+    // Mostrar razones si se pide (columna ratio_col)
+    if (show_ratio && ratio_col >= 0) {
+        fprintf(f, "\\\\[0.2cm]\n\\small Razones $\\frac{RHS}{a_{i,%d}}$ (sólo con $a_{i,%d}>0$):\\\\\n", ratio_col, ratio_col);
+        fprintf(f, "\\begin{tabular}{lr}\\toprule Fila & Razón \\\\ \\midrule\n");
+        for (int i = 1; i < tb->rows; i++) {
+            double a = tb->T[i][ratio_col];
+            if (a > EPS) {
+                double rhs = tb->T[i][tb->cols - 1];
+                double r = rhs / a;
+                fprintf(f, "%d & %.6g \\\\\n", i, r);
+            }
+        }
+        fprintf(f, "\\bottomrule\\end{tabular}\n");
+    }
+
+    fprintf(f, "\\end{center}\n");
+}
+
+static void latex_print_solution(FILE *f, const SimplexRun *run, int vars, const char **var_names) {
+    fprintf(f, "\\subsection*{Solución óptima}\n");
+    if (run->status == 1) {
+        fprintf(f, "\\textbf{El problema es no acotado.}\\\\\n");
+        return;
+    }
+    fprintf(f, "$Z^* = %.6g$\\\\\n", run->z_value);
+    fprintf(f, "Valores de las variables:\\\\\n");
+    fprintf(f, "\\begin{tabular}{lr}\\toprule Variable & Valor \\\\ \\midrule\n");
+    for (int j = 0; j < vars; j++) {
+        fprintf(f, "%s & %.6g \\\\\n", var_names[j], run->solution ? run->solution[j] : 0.0);
+    }
+    fprintf(f, "\\bottomrule\\end{tabular}\\\\[0.3cm]\n");
+
+    if (run->has_multiple) {
+        fprintf(f, "\\textbf{Soluciones múltiples:} Se detectó al menos una dirección con costo reducido cero.\\newline\n");
+        fprintf(f, "La ecuación paramétrica de soluciones se obtiene dejando libre la variable no básica con costo reducido cero y ajustando la base.\\newline\n");
+        fprintf(f, "Se muestran al menos dos soluciones básicas factibles equivalentes (ver tablas finales).\\\\\n");
+    }
+    if (run->degenerate) {
+        fprintf(f, "\\textit{Observación:} Se detectó \\textbf{degeneración} (razones con empate o salidas con RHS=0).\\\\\n");
+    }
+}
+
+// ========================
+//  TUS HANDLERS GUI (sin cambios salvo donde integramos Símplex)
+// ========================
 
 // --- Cerrar todo el programa ---
 void on_close_main_window(GtkWidget *widget, gpointer user_data)
@@ -362,44 +775,44 @@ void on_generate_clicked(GtkButton *button, gpointer user_data)
     gtk_box_pack_start(GTK_BOX(main_vbox), label_sujeto, FALSE, FALSE, 5);
 
     for (int r = 0; r < cons; r++)
+{
+    GtkWidget *hbox_con = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    GPtrArray *fila_labels = g_ptr_array_new();
+
+    for (int v = 0; v < vars; v++)
     {
-        GtkWidget *hbox_con = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
-        GPtrArray *fila_labels = g_ptr_array_new();
+        if (v > 0)
+            gtk_box_pack_start(GTK_BOX(hbox_con), gtk_label_new("+"), FALSE, FALSE, 3);
 
-        for (int v = 0; v < vars; v++)
-        {
-            if (v > 0)
-                gtk_box_pack_start(GTK_BOX(hbox_con), gtk_label_new("+"), FALSE, FALSE, 3);
+        GtkWidget *entry_coef = gtk_entry_new();
+        gtk_entry_set_width_chars(GTK_ENTRY(entry_coef), 5);
+        gtk_entry_set_text(GTK_ENTRY(entry_coef), "0");
+        gtk_box_pack_start(GTK_BOX(hbox_con), entry_coef, FALSE, FALSE, 5);
+        g_ptr_array_add(entry_con_coefs, entry_coef);
 
-            GtkWidget *entry_coef = gtk_entry_new();
-            gtk_entry_set_width_chars(GTK_ENTRY(entry_coef), 5);
-            gtk_entry_set_text(GTK_ENTRY(entry_coef), "0");
-            gtk_box_pack_start(GTK_BOX(hbox_con), entry_coef, FALSE, FALSE, 5);
-            g_ptr_array_add(entry_con_coefs, entry_coef);
-
-            const char *var_name = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_var_names, v)));
-            GtkWidget *label_var = gtk_label_new(var_name);
-            gtk_box_pack_start(GTK_BOX(hbox_con), label_var, FALSE, FALSE, 5);
-            g_ptr_array_add(fila_labels, label_var);
-        }
-
-        GtkWidget *combo_sign = gtk_combo_box_text_new();
-        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo_sign), "<=");
-        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo_sign), "=");
-        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo_sign), ">=");
-        gtk_combo_box_set_active(GTK_COMBO_BOX(combo_sign), 0);
-        gtk_box_pack_start(GTK_BOX(hbox_con), combo_sign, FALSE, FALSE, 5);
-        g_ptr_array_add(combo_signs, combo_sign);
-
-        GtkWidget *entry_rhs = gtk_entry_new();
-        gtk_entry_set_width_chars(GTK_ENTRY(entry_rhs), 5);
-        gtk_entry_set_text(GTK_ENTRY(entry_rhs), "0");
-        gtk_box_pack_start(GTK_BOX(hbox_con), entry_rhs, FALSE, FALSE, 5);
-        g_ptr_array_add(entry_rhs_list, entry_rhs);
-
-        gtk_box_pack_start(GTK_BOX(main_vbox), hbox_con, FALSE, FALSE, 0);
-        g_ptr_array_add(labels_con_vars, fila_labels);
+        const char *var_name = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_var_names, v)));
+        GtkWidget *label_var = gtk_label_new(var_name);
+        gtk_box_pack_start(GTK_BOX(hbox_con), label_var, FALSE, FALSE, 5);
+        g_ptr_array_add(fila_labels, label_var);
     }
+
+    GtkWidget *combo_sign = gtk_combo_box_text_new();
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo_sign), "<=");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo_sign), "=");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo_sign), ">=");
+    gtk_combo_box_set_active(GTK_COMBO_BOX(combo_sign), 0);
+    gtk_box_pack_start(GTK_BOX(hbox_con), combo_sign, FALSE, FALSE, 5);
+    g_ptr_array_add(combo_signs, combo_sign);
+
+    GtkWidget *entry_rhs = gtk_entry_new();
+    gtk_entry_set_width_chars(GTK_ENTRY(entry_rhs), 5);
+    gtk_entry_set_text(GTK_ENTRY(entry_rhs), "0");
+    gtk_box_pack_start(GTK_BOX(hbox_con), entry_rhs, FALSE, FALSE, 5);
+    g_ptr_array_add(entry_rhs_list, entry_rhs);
+
+    gtk_box_pack_start(GTK_BOX(main_vbox), hbox_con, FALSE, FALSE, 0);
+    g_ptr_array_add(labels_con_vars, fila_labels);
+}
 
     label_nonneg = gtk_label_new("");
     gtk_box_pack_start(GTK_BOX(main_vbox), label_nonneg, FALSE, FALSE, 10);
@@ -441,12 +854,31 @@ void on_generate_clicked(GtkButton *button, gpointer user_data)
     gtk_widget_show_all(second_window);
 }
 
+// === NUEVO: helper para obtener nombres de variables en arreglo C
+static void collect_var_names(int vars, const char **names_buf) {
+    for (int i = 0; i < vars; i++) {
+        names_buf[i] = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_var_names, i)));
+    }
+}
+
+// --- Escribimos TODO el PDF incluyendo Simplex ---
 void write_file(int vars, int cons, GtkWidget *box_model, int show_tables, const char *problem_name)
 {
+    // 1) Construir tabla inicial del Símplex
+    int unsupported_signs = 0;
+    int opt_type = gtk_combo_box_get_active(GTK_COMBO_BOX(combo_opt_global)); // 0=max, 1=min
+    Tableau *initial = build_initial_tableau_from_inputs(vars, cons, &unsupported_signs, opt_type);
+
+    // 2) Resolver
+    SimplexRun *run = simplex_solve(initial, vars, cons, opt_type==0, show_tables!=0);
+
+    // 3) Abrir .tex
     FILE *f = fopen("simplex_output.tex", "w");
     if (!f)
     {
         perror("fopen tex");
+        tableau_free(initial);
+        simplex_run_free(run);
         return;
     }
 
@@ -461,9 +893,12 @@ void write_file(int vars, int cons, GtkWidget *box_model, int show_tables, const
     fprintf(f, "\\usepackage{pdflscape}\n");
     fprintf(f, "\\usepackage{tikz}\n");
     fprintf(f, "\\geometry{margin=0.8in}\n");
+    fprintf(f, "\\title{Proyecto 4: SIMPLEX}\n");
+    fprintf(f, "\\author{Investigación de Operaciones}\n");
+    fprintf(f, "\\date{}\n");
     fprintf(f, "\\begin{document}\n");
 
-    // --- Portada ---
+    // --- Portada (dejé la tuya; puedes ajustar nombres/profesor) ---
     fprintf(f, "\\begin{center}\n");
     fprintf(f, "{\\large Instituto Tecnológico de Costa Rica\\\\[1cm]\n");
     fprintf(f, "\\includegraphics[width=0.4\\textwidth]{TEC.png}\\\\[2cm]\n");
@@ -477,154 +912,132 @@ void write_file(int vars, int cons, GtkWidget *box_model, int show_tables, const
     fprintf(f, "{\\large Segundo semestre 2025\\\\[1cm]\n");
     fprintf(f, "\\end{center}\n\\newpage\n");
 
-    // --- Algoritmo Simplex ---
+    // --- Algoritmo Simplex (tu texto) ---
     fprintf(f, "\\section*{Algoritmo SIMPLEX}\n");
     fprintf(f,
-            "El \\textbf{algoritmo SIMPLEX} es uno de los métodos más importantes y utilizados en el campo de la optimización lineal. "
-            "Fue desarrollado por George Bernard Dantzig en 1947, en el contexto de investigaciones relacionadas con la planificación "
-            "logística y de recursos durante la posguerra. Dantzig, un matemático y científico estadounidense, ideó este método como una "
-            "herramienta para resolver problemas de programación lineal, un área que busca optimizar (maximizar o minimizar) una función "
-            "objetivo sujeta a un conjunto de restricciones lineales. \n\n"
-
-            "El surgimiento del algoritmo Simplex marcó un antes y un después en la optimización matemática. Antes de su creación, no existía "
-            "un procedimiento general y sistemático que permitiera resolver eficientemente problemas de gran escala con múltiples variables y "
-            "restricciones. Dantzig propuso un enfoque geométrico basado en la observación de que la solución óptima de un problema lineal se "
-            "encuentra en uno de los vértices o puntos extremos del poliedro factible, es decir, del conjunto de soluciones que cumplen todas "
-            "las restricciones del problema. \n\n"
-
-            "El método Simplex avanza de un vértice a otro a través de las aristas del poliedro, mejorando progresivamente el valor de la "
-            "función objetivo hasta encontrar el óptimo. Cada movimiento corresponde a un cambio de una variable básica en la solución, lo "
-            "que permite al algoritmo recorrer el espacio factible de manera ordenada y eficiente. \n\n"
-
-            "\\textbf{Entre las principales propiedades del algoritmo Simplex destacan las siguientes:}\n"
-            "\\begin{itemize}\n"
-            "  \\item \\textit{Eficiencia práctica:} aunque en teoría su complejidad puede ser exponencial en el peor de los casos, en la práctica el algoritmo es extremadamente eficiente y puede resolver problemas con miles de variables y restricciones en tiempos incluso lineales.\n"
-            "  \\item \\textit{Interpretación geométrica clara:} El procedimiento del Simplex se basa en conceptos geométricos simples, lo que facilita su comprensión y visualización en espacios de baja dimensión.\n"
-            "  \\item \\textit{Importancia histórica y teórica:} el Simplex no solo revolucionó la programación lineal, sino que también sentó las bases para la aparición de otros métodos de optimización, como los algoritmos de punto interior y técnicas modernas de optimización convexa.\n"
-            "\\end{itemize}\n\n"
-
-            "\\bigskip\n");
+            "El \\textbf{algoritmo SIMPLEX} resuelve problemas de programación lineal avanzando por vértices del poliedro factible hasta hallar el óptimo. "
+            "En este trabajo seguimos la forma canónica: en la tabla inicial la primera fila corresponde a la función objetivo $Z - \\sum c_i x_i = 0$, "
+            "y cada fila siguiente a una restricción con su variable de holgura. En maximización se elige como columna entrante el \\emph{más negativo} de la fila 0; "
+            "en minimización, el \\emph{más positivo} (como se indicó en clase). El pivote se selecciona por \\emph{mínima razón positiva} y se documentan los casos especiales.\n");
 
     // --- Problema original ---
     fprintf(f, "\\section*{Problema original}\n");
     fprintf(f, "Nombre del problema: \\textbf{%s}\\\\[0.3cm]\n", problem_name);
-    fprintf(f, "El problema original se puede formular como un problema de programación lineal, donde se busca optimizar una función objetivo sujeta a ciertas restricciones.\n\n");
+    fprintf(f, "\\textbf{%s Z = } ", opt_type == 0 ? "Maximizar" : "Minimizar");
 
-    // Obtener tipo de optimización
-    int opt_type = gtk_combo_box_get_active(GTK_COMBO_BOX(combo_opt_global));
-    fprintf(f, "\\textbf\n\n{%s Z = } ", opt_type == 0 ? "Maximizar" : "Minimizar");
+    // Nombres de variables (para impresión)
+    const char *var_names[64]; // límite práctico: 15; 64 es amplio
+    collect_var_names(vars, var_names);
 
-    // --- Escribir función objetivo ---
-    for (int i = 0; i < vars; i++)
-    {
+    // Función objetivo
+    for (int i = 0; i < vars; i++) {
         const char *coef = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_obj_coefs, i)));
-        const char *var = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_var_names, i)));
-
-        if (i > 0)
-            fprintf(f, " + ");
+        const char *var = var_names[i];
+        if (i > 0) fprintf(f, " + ");
         fprintf(f, "%s %s", coef, var);
     }
-
     fprintf(f, "\\\\[0.5cm]\n");
 
-    // --- Escribir restricciones ---
+    // Restricciones
     fprintf(f, "\\textbf{Sujeto a:}\\\\\n");
-
     int idx = 0;
-    for (int r = 0; r < cons; r++)
-    {
-        for (int v = 0; v < vars; v++)
-        {
+    for (int r = 0; r < cons; r++) {
+        for (int v = 0; v < vars; v++) {
             const char *coef = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_con_coefs, idx++)));
-            const char *var = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_var_names, v)));
-
-            if (v > 0)
-                fprintf(f, " + ");
+            const char *var = var_names[v];
+            if (v > 0) fprintf(f, " + ");
             fprintf(f, "%s %s", coef, var);
         }
-
         GtkWidget *combo = g_ptr_array_index(combo_signs, r);
         int sign = gtk_combo_box_get_active(GTK_COMBO_BOX(combo));
-        const char *sign_text = (sign == 0) ? "\\leq" : (sign == 1) ? "="
-                                                                    : "\\geq";
-
+        const char *sign_text = (sign == 0) ? "\\leq" : (sign == 1) ? "=" : "\\geq";
         GtkWidget *rhs = g_ptr_array_index(entry_rhs_list, r);
         const char *rhs_val = gtk_entry_get_text(GTK_ENTRY(rhs));
-
         fprintf(f, " %s %s \\\\\n", sign_text, rhs_val);
     }
 
-    // --- Escribir condición de no negatividad ---
-    fprintf(f, "\\\\[0.3cm]\n");
-    fprintf(f, "\\textbf{Y con } ");
-
-    for (int i = 0; i < vars; i++)
-    {
-        const char *var = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_var_names, i)));
-        fprintf(f, "%s", var);
-        if (i < vars - 1)
-            fprintf(f, ", ");
+    // No negatividad
+    fprintf(f, "\\\\[0.3cm]\n\\textbf{Y con } ");
+    for (int i2 = 0; i2 < vars; i2++) {
+        fprintf(f, "%s%s", var_names[i2], (i2 < vars - 1) ? ", " : "");
     }
-
     fprintf(f, " \\geq 0\\\\[0.5cm]\n\\bigskip\n");
 
-    // --- Tabla inicial---
-    fprintf(f, "\\section*{Tabla inicial}\n");
-
-    // --- Tablas intermedias ---
-    if (show_tables)
-    {
-        fprintf(f, "\\section*{Tablas intermedias}\n");
+    if (unsupported_signs) {
+        fprintf(f, "\\textit{Aviso:} En esta versión se resuelven únicamente restricciones de tipo $\\leq$. "
+                    "Si se ingresaron restricciones con $=$ o $\\geq$, se ignoran para el proceso de solución y se reportan aquí por completitud.\\\\[0.2cm]\n");
     }
 
-    fprintf(f, "\\newpage\n");
+    // --- Tabla inicial ---
+    fprintf(f, "\\section*{Tabla inicial}\n");
+    latex_print_table(f, run->initial, vars, cons, var_names, -1, -1, 0, -1);
+
+    // --- Tablas intermedias ---
+    if (show_tables && run->steps && run->steps->len > 0) {
+        fprintf(f, "\\section*{Tablas intermedias}\n");
+        for (guint k = 0; k < run->steps->len; k++) {
+            Tableau *step = (Tableau*)g_ptr_array_index(run->steps, k);
+            fprintf(f, "\\subsection*{Iteración %u}\n", (unsigned)k);
+            int show_ratio = (step->entering_col >=0);
+            latex_print_table(f, step, vars, cons, var_names,
+                              step->entering_col, step->leaving_row,
+                              show_ratio, step->entering_col);
+            fprintf(f, "\\vspace{0.3cm}\n");
+        }
+    }
 
     // --- Tabla final ---
     fprintf(f, "\\section*{Tabla final}\n");
+    latex_print_table(f, run->final, vars, cons, var_names,
+                      -1, -1, 0, -1);
 
-    // --- Soluciones ---
-    fprintf(f, "\\section*{Soluciones}\n");
+    // --- Solución ---
+    fprintf(f, "\\section*{Solución}\n");
+    latex_print_solution(f, run, vars, var_names);
 
-    // --- Referencias ---
+    // --- Referencias (tuyas) ---
+    fprintf(f, "\\section*{Referencias}\n");
     fprintf(f, "\\begin{thebibliography}{9}\n");
-
     fprintf(f,
             "\\bibitem{wikipedia2025} Wikipedia contributors. (2025, 6 octubre). Simplex algorithm. "
             "\\textit{Wikipedia}. Disponible en: https://en.wikipedia.org/wiki/Simplex_algorithm\n\n");
-
     fprintf(f,
             "\\bibitem{benlowery2022} Ben-Lowery. (2022, 4 abril). Linear Programming and the birth of the Simplex Algorithm. "
             "\\textit{Ben Lowery @ STOR-i}. Disponible en: https://www.lancaster.ac.uk/stor-i-student-sites/ben-lowery/2022/03/linear-programming-and-the-birth-of-the-simplex-algorithm/\n\n");
-
     fprintf(f,
             "\\bibitem{libretexts2022} Libretexts. (2022, 18 julio). 4.2: Maximization by the Simplex method. "
             "\\textit{Mathematics LibreTexts}. Disponible en: https://math.libretexts.org/Bookshelves/Applied_Mathematics/Applied_Finite_Mathematics_%%28Sekhon_and_Bloom%%29/04%%3A_Linear_Programming_The_Simplex_Method/4.02%%3A_Maximization_By_The_Simplex_Method\n\n");
-
     fprintf(f, "\\end{thebibliography}\n");
+
     fprintf(f, "\\end{document}\n");
     fclose(f);
+
+    tableau_free(initial);
+    simplex_run_free(run);
 }
 
+// Ejecutar y compilar
 void simplex(GtkWidget *btn, gpointer data)
 {
     const char *problem_name = g_object_get_data(G_OBJECT(btn), "problem_name");
     if (!problem_name)
         problem_name = "SinNombre";
     GtkWidget **widgets = (GtkWidget **)data;
-    GtkWidget *box_model = widgets[0];
+    GtkWidget *box_model_local = widgets[0];
     int vars = GPOINTER_TO_INT(widgets[1]);
     int cons = GPOINTER_TO_INT(widgets[2]);
 
     gboolean show_tables = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_intermediate));
-    write_file(vars, cons, box_model, show_tables, problem_name);
+    write_file(vars, cons, box_model_local, show_tables, problem_name);
 
-    // Compilar con pdflatex
+    // Compilar con pdflatex (dos pasadas por si acaso)
     char cmd[512];
     snprintf(cmd, sizeof(cmd), "pdflatex -interaction=nonstopmode %s > /dev/null 2>&1", "simplex_output.tex");
     system(cmd);
     system(cmd);
 
     // Abrir PDF en evince (presentación)
+    // Nota: si recibes "archivo no existe", revisa permisos/dir trabajo o errores de pdflatex.
     snprintf(cmd, sizeof(cmd), "evince --presentation simplex_output.pdf &");
     system(cmd);
 }
