@@ -1,19 +1,13 @@
-CC=gcc
-CFLAGS=`pkg-config --cflags gtk+-3.0`
-LIBS=`pkg-config --libs gtk+-3.0`
-SRC=src/simplex.c
-OBJ=$(SRC:.c=.o)
-TARGET=simplex
+CC = gcc
+CFLAGS = $(shell pkg-config --cflags gtk+-3.0)
+LIBS = $(shell pkg-config --libs gtk+-3.0)
 
-all: $(TARGET)
+TARGETS = simplex
 
-$(TARGET): $(OBJ)
-	$(CC) -o $@ $^ $(LIBS)
+all: $(TARGETS)
 
-%.o: %.c
-	$(CC) -c $< $(CFLAGS)
+main: main.c
+	$(CC) simplex.c -o simplex $(CFLAGS) $(LIBS)
 
 clean:
-	rm -f $(OBJ) $(TARGET)
-
-.PHONY: all clean
+	rm -f simplex
