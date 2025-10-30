@@ -6,7 +6,7 @@ TARGETS = simplex
 
 all: $(TARGETS)
 
-main: main.c
+main: simplex.c
 	$(CC) simplex.c -o simplex $(CFLAGS) $(LIBS)
 
 clean:
