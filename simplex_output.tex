@@ -1,0 +1,156 @@
+% Archivo generado automáticamente por simplex.c
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{array,booktabs}
+\usepackage[table]{xcolor}
+\usepackage{longtable}
+\usepackage{geometry}
+\usepackage{pdflscape}
+\usepackage{tikz}
+\geometry{margin=0.8in}
+\title{Proyecto 4: SIMPLEX}
+\author{Investigación de Operaciones}
+\date{}
+\begin{document}
+\begin{center}
+{\large Instituto Tecnológico de Costa Rica\\[1cm]
+\includegraphics[width=0.4\textwidth]{TEC.png}\\[2cm]
+{\LARGE \textbf{Proyecto 4: SIMPLEX}}\\[2cm]
+{\large Investigación de Operaciones\\[2cm]
+{\large Profesor: }\\[1cm]
+{\large Francisco Jose Torres Rojas}\\[2cm]
+{\large Integrantes: }\\[1cm]
+{\large Jose Pablo Fernandez Jimenez - 2023117752}\\[1cm]
+{\large Diego Durán Rodríguez - 2022437509}\\[2cm]
+{\large Segundo semestre 2025\\[1cm]
+\end{center}
+\newpage
+\section*{Algoritmo SIMPLEX}
+El \textbf{algoritmo SIMPLEX} es uno de los métodos más importantes y utilizados en el campo de la optimización lineal. Fue desarrollado por George Bernard Dantzig en 1947, en el contexto de investigaciones relacionadas con la planificación logística y de recursos durante la posguerra. Dantzig, un matemático y científico estadounidense, ideó este método como una herramienta para resolver problemas de programación lineal, un área que busca optimizar (maximizar o minimizar) una función objetivo sujeta a un conjunto de restricciones lineales. 
+
+El surgimiento del algoritmo Simplex marcó un antes y un después en la optimización matemática. Antes de su creación, no existía un procedimiento general y sistemático que permitiera resolver eficientemente problemas de gran escala con múltiples variables y restricciones. Dantzig propuso un enfoque geométrico basado en la observación de que la solución óptima de un problema lineal se encuentra en uno de los vértices o puntos extremos del poliedro factible, es decir, del conjunto de soluciones que cumplen todas las restricciones del problema. 
+
+El método Simplex avanza de un vértice a otro a través de las aristas del poliedro, mejorando progresivamente el valor de la función objetivo hasta encontrar el óptimo. Cada movimiento corresponde a un cambio de una variable básica en la solución, lo que permite al algoritmo recorrer el espacio factible de manera ordenada y eficiente. 
+
+\textbf{Entre las principales propiedades del algoritmo Simplex destacan las siguientes:}
+\begin{itemize}
+  \item \textit{Eficiencia práctica:} aunque en teoría su complejidad puede ser exponencial en el peor de los casos, en la práctica el algoritmo es extremadamente eficiente y puede resolver problemas con miles de variables y restricciones en tiempos incluso lineales.
+  \item \textit{Interpretación geométrica clara:} El procedimiento del Simplex se basa en conceptos geométricos simples, lo que facilita su comprensión y visualización en espacios de baja dimensión.
+  \item \textit{Importancia histórica y teórica:} el Simplex no solo revolucionó la programación lineal, sino que también sentó las bases para la aparición de otros métodos de optimización, como los algoritmos de punto interior y técnicas modernas de optimización convexa.
+\end{itemize}
+
+\bigskip
+\section*{Problema original}
+Nombre del problema: \textbf{Fábrica de Mesas Dakota Modificado}\\[0.3cm]
+El problema original se puede formular como un problema de programación lineal, donde se busca optimizar una función objetivo sujeta a ciertas restricciones:
+
+\\[0.5cm]
+\vspace{0.4cm}
+\textbf{Maximizar} \textbf{Z = } 60 $X_1$ + 35 $X_2$ + 20 $X_3$\\[0.5cm]
+\textbf{Sujeto a:}\\
+8 $X_1$ + 6 $X_2$ + $X_3$ \leq 48 \\
+4 $X_1$ + 2 $X_2$ + 1.5 $X_3$ \leq 20 \\
+2 $X_1$ + 1.5 $X_2$ + 0.5 $X_3$ \leq 8 \\
+$X_2$ \leq 5 \\
+\\[0.3cm]
+\textbf{Con } $X_1$, $X_2$, $X_3$ \geq 0\\[0.5cm]
+\bigskip
+\section*{Tabla inicial}
+\begin{center}
+\rowcolors{2}{white}{gray!10}
+\begin{tabular}{rrrrrrrrr}
+\toprule
+$Z$ & $X_1$ & $X_2$ & $X_3$ & $s_{1}$ & $s_{2}$ & $s_{3}$ & $s_{4}$ & \\\midrule
+1 & -60 & -35 & -20 & 0 & 0 & 0 & 0 & 0\\
+0 & 8 & 6 & 1 & 1 & 0 & 0 & 0 & 48\\
+0 & 4 & 2 & 1.5 & 0 & 1 & 0 & 0 & 20\\
+0 & 2 & 1.5 & 0.5 & 0 & 0 & 1 & 0 & 8\\
+0 & 0 & 1 & 0 & 0 & 0 & 0 & 1 & 5\\
+\bottomrule
+\end{tabular}
+\end{center}
+\section*{Tabla final}
+\begin{center}
+\rowcolors{2}{white}{gray!10}
+\begin{tabular}{rrrrrrrrr}
+\toprule
+$Z$ & $X_1$ & $X_2$ & $X_3$ & $s_{1}$ & $s_{2}$ & $s_{3}$ & $s_{4}$ & \\\midrule
+1 & 0 & 0 & 0 & 0 & 10 & 10 & 0 & 280\\
+0 & 0 & -2 & 0 & 1 & 2 & -8 & 0 & 24\\
+0 & 0 & -2 & 1 & 0 & 2 & -4 & 0 & 8\\
+0 & 1 & 1.25 & 0 & 0 & -0.5 & 1.5 & 0 & 2\\
+0 & 0 & 1 & 0 & 0 & 0 & 0 & 1 & 5\\
+\bottomrule
+\end{tabular}
+\end{center}
+En la solución 1, se puede observar que existe al menos una variable no básica con costo reducido cero, lo que indica la presencia de soluciones múltiples óptimas. Al realizar un pivote adicional utilizando dicha variable como entrante, se obtiene otra solución básica factible equivalente:\\[0.3cm]
+\subsection*{Tabla final 2 (solución 2 tras un pivote adicional)}
+\begin{center}
+\rowcolors{2}{white}{gray!10}
+\begin{tabular}{rrrrrrrrr}
+\toprule
+$Z$ & $X_1$ & $X_2$ & $X_3$ & $s_{1}$ & $s_{2}$ & $s_{3}$ & $s_{4}$ & \\\midrule
+1 & 0 & 0 & 0 & 0 & 10 & 10 & 0 & 280\\
+0 & 1.6 & 0 & 0 & 1 & 1.2 & -5.6 & 0 & 27.2\\
+0 & 1.6 & 0 & 1 & 0 & 1.2 & -1.6 & 0 & 11.2\\
+0 & 0.8 & 1 & 0 & 0 & -0.4 & 1.2 & 0 & 1.6\\
+0 & -0.8 & 0 & 0 & 0 & 0.4 & -1.2 & 1 & 3.4\\
+\bottomrule
+\end{tabular}
+\end{center}
+\section*{Solución}
+$Z = 280$\\[0.3cm]
+\section*{Valores de todas las variables}
+\begin{tabular}{lr}\toprule Variable & Valor \\ \midrule
+$X_1$ & 2 \\
+$X_2$ & 0 \\
+$X_3$ & 8 \\
+s_{1} & 24 \\
+s_{2} & 0 \\
+s_{3} & 0 \\
+s_{4} & 5 \\
+\bottomrule\end{tabular}\\[0.3cm]
+\subsection*{Solución 2 (tras pivote adicional)}\\[0.3cm]
+$Z = 280$\\[0.3cm]
+\section*{Valores de todas las variables}
+\begin{tabular}{lr}\toprule Variable & Valor \\ \midrule
+$X_1$ & 0 \\
+$X_2$ & 1.6 \\
+$X_3$ & 11.2 \\
+s_{1} & 27.2 \\
+s_{2} & 0 \\
+s_{3} & 0 \\
+s_{4} & 3.4 \\
+\bottomrule\end{tabular}\\[0.3cm]
+\subsection*{Soluciones adicionales (combinaciones convexas)}
+Si existen soluciones múltiples, cualquier combinación convexa de dos soluciones básicas produce otra solución factible. Aquí usamos la fórmula: $x(\alpha)=\alpha x^{(1)} + (1-\alpha) x^{(2)}$, con $\alpha \in [0,1]$.\\[0.2cm]
+\textbf{Alfa = 0.25}:\\
+\begin{tabular}{lr}\toprule Variable & Valor \\ \midrule
+$X_1$ & 0.5 \\
+$X_2$ & 1.2 \\
+$X_3$ & 10.4 \\
+\bottomrule\end{tabular}\\[0.2cm]
+\textbf{Alfa = 0.5}:\\
+\begin{tabular}{lr}\toprule Variable & Valor \\ \midrule
+$X_1$ & 1 \\
+$X_2$ & 0.8 \\
+$X_3$ & 9.6 \\
+\bottomrule\end{tabular}\\[0.2cm]
+\textbf{Alfa = 0.75}:\\
+\begin{tabular}{lr}\toprule Variable & Valor \\ \midrule
+$X_1$ & 1.5 \\
+$X_2$ & 0.4 \\
+$X_3$ & 8.8 \\
+\bottomrule\end{tabular}\\[0.2cm]
+\vspace{0.3cm}
+\renewcommand{\refname}{Referencias}
+\begin{thebibliography}{9}
+\bibitem{wikipedia2025} Wikipedia contributors. (2025, 6 octubre). Simplex algorithm. \textit{Wikipedia}. Disponible en: https://en.wikipedia.org/wiki/Simplex_algorithm
+
+\bibitem{benlowery2022} Ben-Lowery. (2022, 4 abril). Linear Programming and the birth of the Simplex Algorithm. \textit{Ben Lowery @ STOR-i}. Disponible en: https://www.lancaster.ac.uk/stor-i-student-sites/ben-lowery/2022/03/linear-programming-and-the-birth-of-the-simplex-algorithm/
+
+\bibitem{libretexts2022} Libretexts. (2022, 18 julio). 4.2: Maximization by the Simplex method. \textit{Mathematics LibreTexts}. Disponible en: https://math.libretexts.org/Bookshelves/Applied_Mathematics/Applied_Finite_Mathematics_%28Sekhon_and_Bloom%29/04%3A_Linear_Programming_The_Simplex_Method/4.02%3A_Maximization_By_The_Simplex_Method
+
+\end{thebibliography}
+\end{document}

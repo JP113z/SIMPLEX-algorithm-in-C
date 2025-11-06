@@ -1,0 +1,9 @@
+1. Revisar que pasa con los problemas degenerados.
+2. Trabajo extra opcional 1: haga que su programa maneje apropiadamente “La Pesadilla de
+Dantzig” o similares.
+3. Trabajo extra opcional 2: si el problema es de 2
+variables muestre un grafico con todas las restricciones ´
+y la region factible rellena en alg ´ un color diferente.
+4. Trabajo extra opcional 3: si el problema es de 3
+variables muestre un grafico con 3 ejes que muestre el ´
+cuerpo S´ımplex tridimensional
