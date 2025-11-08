@@ -1270,6 +1270,8 @@ void write_file(int vars, int cons, GtkWidget *box_model, int show_tables, const
     fprintf(f, "\\usepackage{geometry}\n");
     fprintf(f, "\\usepackage{pdflscape}\n");
     fprintf(f, "\\usepackage{tikz}\n");
+    fprintf(f, "\\usepackage{pgfplots}\n");
+    fprintf(f, "\\pgfplotsset{compat=1.18}\n");
     fprintf(f, "\\geometry{margin=0.8in}\n");
     fprintf(f, "\\title{Proyecto 4: SIMPLEX}\n");
     fprintf(f, "\\author{Investigación de Operaciones}\n");
@@ -1560,6 +1562,143 @@ void write_file(int vars, int cons, GtkWidget *box_model, int show_tables, const
             // Mostrar la ecuación general
             fprintf(f, "\\vspace{0.3cm}\n");
         }
+    }
+    // === GRAFICO PARA CASO DE 2 VARIABLES ===
+    if (vars == 2)
+    {
+        fprintf(f, "\\section*{Gráfico de la región factible (solo para 2 variables)}\n");
+        fprintf(f, "A continuación se muestra la región factible en el plano $(x_1, x_2)$ "
+                   "junto con las rectas de las restricciones.\\\\[0.4cm]\n");
+
+        // --- PASO 1: Extraer coeficientes ---
+        double A[cons][2], B[cons];
+        int idx2 = 0;
+        for (int r = 0; r < cons; r++)
+        {
+            A[r][0] = atof(gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_con_coefs, idx2++))));
+            A[r][1] = atof(gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_con_coefs, idx2++))));
+            B[r] = atof(gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_rhs_list, r))));
+        }
+
+        double pts_x[256], pts_y[256];
+        int pt_count = 0;
+
+        // Añadir (0,0) siempre como posible punto
+        pts_x[pt_count] = 0;
+        pts_y[pt_count] = 0;
+        pt_count++;
+
+        // Intersección con ejes
+        for (int r = 0; r < cons; r++)
+        {
+            if (fabs(A[r][0]) > 1e-12)
+            {
+                double x = B[r] / A[r][0];
+                if (x >= 0)
+                {
+                    pts_x[pt_count] = x;
+                    pts_y[pt_count] = 0;
+                    pt_count++;
+                }
+            }
+            if (fabs(A[r][1]) > 1e-12)
+            {
+                double y = B[r] / A[r][1];
+                if (y >= 0)
+                {
+                    pts_x[pt_count] = 0;
+                    pts_y[pt_count] = y;
+                    pt_count++;
+                }
+            }
+        }
+
+        // Intersecciones entre restricciones
+        for (int i = 0; i < cons; i++)
+            for (int j = i + 1; j < cons; j++)
+            {
+                double det = A[i][0] * A[j][1] - A[j][0] * A[i][1];
+                if (fabs(det) < 1e-12)
+                    continue;
+
+                double x = (B[i] * A[j][1] - B[j] * A[i][1]) / det;
+                double y = (A[i][0] * B[j] - A[j][0] * B[i]) / det;
+
+                if (x >= 0 && y >= 0)
+                {
+                    pts_x[pt_count] = x;
+                    pts_y[pt_count] = y;
+                    pt_count++;
+                }
+            }
+
+        // Filtrar solo puntos factibles
+        double fx[256], fy[256];
+        int fc = 0;
+        for (int k = 0; k < pt_count; k++)
+        {
+            int ok = 1;
+            for (int r = 0; r < cons; r++)
+                if (A[r][0] * pts_x[k] + A[r][1] * pts_y[k] > B[r] + 1e-9)
+                    ok = 0;
+            if (ok)
+            {
+                fx[fc] = pts_x[k];
+                fy[fc] = pts_y[k];
+                fc++;
+            }
+        }
+
+        // Ordenar vértices por ángulo alrededor del centroide
+        double cx = 0, cy = 0;
+        for (int i = 0; i < fc; i++)
+        {
+            cx += fx[i];
+            cy += fy[i];
+        }
+        cx /= fc;
+        cy /= fc;
+
+        for (int i = 0; i < fc; i++)
+            for (int j = i + 1; j < fc; j++)
+            {
+                double ang_i = atan2(fy[i] - cy, fx[i] - cx);
+                double ang_j = atan2(fy[j] - cy, fx[j] - cx);
+                if (ang_i > ang_j)
+                {
+                    double tx = fx[i], ty = fy[i];
+                    fx[i] = fx[j];
+                    fy[i] = fy[j];
+                    fx[j] = tx;
+                    fy[j] = ty;
+                }
+            }
+
+        // --- DIBUJAR ---
+        fprintf(f, "\\begin{tikzpicture}\n");
+        fprintf(f, "\\begin{axis}[\n  xlabel=$x_1$, ylabel=$x_2$,\n"
+                   "  axis lines=middle,\n  xmin=0, ymin=0,\n"
+                   "  width=12cm, height=10cm]\n");
+
+        // Dibujar restricciones completas (rectas enteras)
+        for (int r = 0; r < cons; r++)
+        {
+            if (fabs(A[r][1]) > 1e-12)
+                fprintf(f, "\\addplot[thick,domain=0:20] (x,{(%g-%g*x)/%g});\n", B[r], A[r][0], A[r][1]);
+            else
+            {
+                double xval = B[r] / A[r][0];
+                fprintf(f, "\\addplot[thick] coordinates {(%g,0) (%g,20)};\n", xval, xval);
+            }
+        }
+
+        // Región factible (polígono cerrado)
+        fprintf(f, "\\addplot[fill=blue!25, fill opacity=0.4] coordinates {");
+        for (int i = 0; i < fc; i++)
+            fprintf(f, "(%g,%g) ", fx[i], fy[i]);
+        fprintf(f, "(%g,%g)};\n", fx[0], fy[0]); // cerrar polígono
+
+        fprintf(f, "\\end{axis}\n\\end{tikzpicture}\n\\newpage\n");
     }
 
     // --- Información sobre degeneración (si aplica) ---
