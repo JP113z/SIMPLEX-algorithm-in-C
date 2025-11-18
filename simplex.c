@@ -48,6 +48,16 @@ typedef struct
     int *basis;       // índice de columna básica por cada fila (excepto fila 0). basis[r] = columna básica de la fila r (r>=1)
     int entering_col; // última col que entró
     int leaving_row;  // última fila que salió
+    double BIG_M;            // valor numérico para computar (p.ej., 1e6)
+    char **col_names;        // nombre por columna: "Z", "X_i", "s_i", "e_i", "a_i", "RHS"
+    unsigned char *is_slack; // 1 si slack
+    unsigned char *is_sur;   // 1 si exceso
+    unsigned char *is_art;   // 1 si artificial
+
+    // Mostrar M en tabla inicial (solo estética)
+    int show_M_in_initial_row0;  // 1 si se quiere imprimir "M" en fila 0
+    int *row0_M_sign;            // por columna: -1, 0, +1 (signo de M visible en fila 0)
+    int row0_M_rhs_sign;         // por si quisieramos mostrar M en RHS (opc.)
 } Tableau;
 
 typedef struct
@@ -101,6 +111,12 @@ static Tableau *tableau_new(int rows, int cols)
     Tableau *tb = (Tableau *)calloc(1, sizeof(Tableau));
     tb->rows = rows;
     tb->cols = cols;
+    tb->BIG_M = 0.0;
+    tb->col_names = NULL;
+    tb->is_slack = tb->is_sur = tb->is_art = NULL;
+    tb->show_M_in_initial_row0 = 0;
+    tb->row0_M_sign = NULL;
+    tb->row0_M_rhs_sign = 0;
     tb->T = alloc_matrix(rows, cols);
     tb->basis = (int *)malloc(sizeof(int) * rows);
     for (int i = 0; i < rows; i++)
@@ -109,20 +125,58 @@ static Tableau *tableau_new(int rows, int cols)
     tb->leaving_row = -1;
     return tb;
 }
+
 static Tableau *tableau_copy(const Tableau *src)
 {
+    if (!src) return NULL;
+
+    // Crea una nueva tabla con las mismas dimensiones
     Tableau *t = tableau_new(src->rows, src->cols);
-    for (int i = 0; i < src->rows; i++)
+
+    // Copiar matriz numérica
+    for (int i = 0; i < src->rows; i++) {
         memcpy(t->T[i], src->T[i], sizeof(double) * src->cols);
+    }
+
+    // Copiar base
     memcpy(t->basis, src->basis, sizeof(int) * src->rows);
-    t->entering_col = src->entering_col;
-    t->leaving_row = src->leaving_row;
+
+    // Copiar campos escalares importantes
+    t->rows                   = src->rows;
+    t->cols                   = src->cols;
+    t->entering_col           = src->entering_col;
+    t->leaving_row            = src->leaving_row;
+    t->BIG_M                  = src->BIG_M;
+    t->show_M_in_initial_row0 = src->show_M_in_initial_row0;
+    t->row0_M_rhs_sign        = src->row0_M_rhs_sign;
+
+    // IMPORTANTE:
+    // No copiamos col_names, ni is_slack, ni is_sur, ni is_art, ni row0_M_sign.
+    // Los dejamos en NULL (tableau_new ya los inicializa en 0/NULL).
+    // latex_print_table verifica estos punteros antes de usarlos, así que no revienta.
+    // tableau_free también verifica antes de liberar, así que no habrá double free.
+
+    t->col_names   = NULL;
+    t->is_slack    = NULL;
+    t->is_sur      = NULL;
+    t->is_art      = NULL;
+    t->row0_M_sign = NULL;
+
     return t;
 }
+
+
+
+
 static void tableau_free(Tableau *tb)
 {
     if (!tb)
         return;
+    if (tb->col_names){ for(int j=0;j<tb->cols;j++) free(tb->col_names[j]); free(tb->col_names); }
+    free(tb->is_slack);
+    free(tb->is_sur);
+    free(tb->is_art);
+    free(tb->row0_M_sign);
     free_matrix(tb->T, tb->rows);
     free(tb->basis);
     free(tb);
@@ -235,63 +289,131 @@ static GPtrArray *collect_degeneracy_info(const Tableau *tb, int entering_col, d
 }
 
 // ========================
-// === Construcción de la tabla inicial
+// === Construcción de la tabla inicial (Gran M)
 // ========================
 static Tableau *build_initial_tableau_from_inputs(int vars, int cons, int *unsupported_sign_found, int opt_type)
 {
+    // 1) Primera pasada: contar slacks, excesos, artificiales
+    int cnt_slack = 0, cnt_sur = 0, cnt_art = 0;
+    for (int i = 0; i < cons; i++) {
+        GtkWidget *combo = g_ptr_array_index(combo_signs, i);
+        int sign = gtk_combo_box_get_active(GTK_COMBO_BOX(combo)); // 0<=, 1=, 2>=
+        if (sign == 0) cnt_slack++;
+        else if (sign == 1) cnt_art++;          // '=' -> artificial
+        else if (sign == 2) { cnt_sur++; cnt_art++; } // '>=' -> exceso + artificial
+    }
+
+    // 2) Definir dimensiones con todas las columnas
+    int cols = 1 /*Z*/ + vars + cnt_slack + cnt_sur + cnt_art + 1 /*RHS*/;
     int rows = cons + 1;
-    int cols = 1 /*Z*/ + vars + cons /*slacks*/ + 1 /*RHS*/;
+
     Tableau *tb = tableau_new(rows, cols);
 
-    // Fila 0: Z - sum c x = 0
-    tb->T[0][0] = 1.0; // coeficiente de Z
-    for (int j = 0; j < vars; j++)
-    {
-        const char *coef_str = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_obj_coefs, j)));
-        double c = parse_coef(coef_str);
-        // En la fila 0 ponemos -c (forma estándar)
-        tb->T[0][1 + j] = -c;
-    }
-    // Restricciones
-    *unsupported_sign_found = 0;
-    int idx = 0;
-    for (int i = 0; i < cons; i++)
-    {
-        // Coeficientes x_j
-        for (int j = 0; j < vars; j++)
-        {
-            const char *a_str = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_con_coefs, idx++)));
-            double a = parse_coef(a_str);
-            tb->T[i + 1][1 + j] = a;
-        }
-        // Signo
-        GtkWidget *combo = g_ptr_array_index(combo_signs, i);
-        int sign = gtk_combo_box_get_active(GTK_COMBO_BOX(combo));
-        if (sign != 0)
-        {
-            // En esta versión, solo ≤. Marcamos que hay restricciones no soportadas
-            *unsupported_sign_found = 1;
-        }
-        // Holgura s_i
-        tb->T[i + 1][1 + vars + i] = 1.0;
+    // Guarda M (numérico para cómputo) y meta
+    tb->BIG_M = 1e6; // puedes exponerlo en la UI si deseas
+    tb->col_names = (char**)calloc(cols, sizeof(char*));
+    tb->is_slack = (unsigned char*)calloc(cols, 1);
+    tb->is_sur   = (unsigned char*)calloc(cols, 1);
+    tb->is_art   = (unsigned char*)calloc(cols, 1);
+    tb->row0_M_sign = (int*)calloc(cols, sizeof(int));
+    tb->show_M_in_initial_row0 = 1; // queremos mostrar M en la tabla inicial
 
+    // 3) Nombres de columnas
+    int cZ = 0; tb->col_names[cZ] = strdup("Z");
+    int c = 1;
+    for (int j = 0; j < vars; j++) {
+        const char *vn = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_var_names, j)));
+        tb->col_names[c++] = strdup(vn && *vn ? vn : "x");
+    }
+    int start_slack = c;
+    for (int s = 0; s < cnt_slack; s++) {
+        char buf[16]; snprintf(buf, sizeof(buf), "s_%d", s+1);
+        tb->col_names[c] = strdup(buf); tb->is_slack[c] = 1; c++;
+    }
+    int start_sur = c;
+    for (int e = 0; e < cnt_sur; e++) {
+        char buf[16]; snprintf(buf, sizeof(buf), "e_%d", e+1);
+        tb->col_names[c] = strdup(buf); tb->is_sur[c] = 1; c++;
+    }
+    int start_art = c;
+    for (int a = 0; a < cnt_art; a++) {
+        char buf[16]; snprintf(buf, sizeof(buf), "a_%d", a+1);
+        tb->col_names[c] = strdup(buf); tb->is_art[c] = 1; c++;
+    }
+    int cRHS = cols - 1; tb->col_names[cRHS] = strdup("RHS");
+
+    // 4) Fila 0: Z y FO
+    tb->T[0][0] = 1.0;
+    for (int j = 0; j < vars; j++) {
+        const char *coef_str = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_obj_coefs, j)));
+        double cj = parse_coef(coef_str);
+        tb->T[0][1 + j] = -cj; // como ya usabas (Max usa "más negativo", Min "más positivo")
+    }
+
+    // 5) Llenar restricciones
+    *unsupported_sign_found = 0;
+    int idx_coef = 0;
+    int pos_slack = 0, pos_sur = 0, pos_art = 0;
+
+    for (int i = 0; i < cons; i++) {
+        // Coeficientes de x
+        for (int j = 0; j < vars; j++) {
+            const char *a_str = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_con_coefs, idx_coef++)));
+            tb->T[i+1][1 + j] = parse_coef(a_str);
+        }
         // RHS
         GtkWidget *rhs = g_ptr_array_index(entry_rhs_list, i);
-        const char *rhs_str = gtk_entry_get_text(GTK_ENTRY(rhs));
-        double b = parse_coef(rhs_str);
-        tb->T[i + 1][cols - 1] = b;
+        tb->T[i+1][cRHS] = parse_coef(gtk_entry_get_text(GTK_ENTRY(rhs)));
 
-        // Base inicial: s_i
-        tb->basis[i + 1] = 1 + vars + i; // columna de s_i
+        // Signo
+        GtkWidget *combo = g_ptr_array_index(combo_signs, i);
+        int sign = gtk_combo_box_get_active(GTK_COMBO_BOX(combo)); // 0<=,1=,2>=
+
+        if (sign == 0) {
+            // <= : slack
+            int col_s = start_slack + (pos_slack++);
+            tb->T[i+1][col_s] = 1.0;
+            tb->basis[i+1] = col_s; // base inicial
+        } else if (sign == 1) {
+            // = : artificial
+            int col_a = start_art + (pos_art++);
+            tb->T[i+1][col_a] = 1.0;
+            tb->basis[i+1] = col_a;
+            // penalización M en fila 0
+            tb->row0_M_sign[col_a] = (opt_type==0 ? +1 : -1); // Max:+M, Min:-M
+            tb->T[0][col_a] += (opt_type==0 ? +tb->BIG_M : -tb->BIG_M);
+        } else if (sign == 2) {
+            // >= : exceso -1 y artificial +1
+            int col_e = start_sur + (pos_sur++);
+            int col_a = start_art + (pos_art++);
+            tb->T[i+1][col_e] = -1.0;
+            tb->T[i+1][col_a] = 1.0;
+            tb->basis[i+1] = col_a;
+            // penalización M en fila 0
+            tb->row0_M_sign[col_a] = (opt_type==0 ? +1 : -1);
+            tb->T[0][col_a] += (opt_type==0 ? +tb->BIG_M : -tb->BIG_M);
+        } else {
+            *unsupported_sign_found = 1;
+        }
     }
 
-    // Para MINIMIZACIÓN según indicación del usuario:
-    // "En casos de minimización se elige la columna a canonizar del valor más positivo de la primera fila"
-    // -> mantenemos la fila 0 como -c. La regla de parada/selección se ajusta en la iteración, no aquí.
-    (void)opt_type;
+    // 6) Canonizar fila 0 respecto a variables BÁSICAS artificiales
+    //    (si una artificial está en la base y fila0 tiene coef ≠ 0 en esa col: fila0 -= coef * fila_básica)
+    for (int r = 1; r < rows; r++) {
+        int bc = tb->basis[r];
+        if (bc >= 0 && tb->is_art[bc]) {
+            double c0 = tb->T[0][bc];
+            if (fabs(c0) > EPS) {
+                for (int j = 0; j < cols; j++) tb->T[0][j] -= c0 * tb->T[r][j];
+                // tras canonizar, el símbolo "M" ya no aparece algebraicamente en la numérica,
+                // pero seguimos mostrando "M" en la tabla INICIAL a modo visual:
+            }
+        }
+    }
 
     return tb;
 }
+
 
 // ========================
 // Selección de columna que entra
@@ -594,84 +716,105 @@ static void latex_print_table(FILE *f, const Tableau *tb, int vars, int cons,
                               const char **var_names, int highlight_col, int highlight_row,
                               int show_ratio, int ratio_col)
 {
+    // --- Determinar visibilidad de columnas ---
+    // Visible si:
+    //  - Z y RHS siempre.
+    //  - Variables de decisión y slacks y excesos siempre.
+    //  - Artificiales SOLO si están en la base actual.
+    int *visible = (int*)calloc(tb->cols, sizeof(int));
+    for (int j = 0; j < tb->cols; j++) {
+        if (j == 0 || j == tb->cols-1) { visible[j] = 1; continue; }
+        if (tb->is_art && tb->is_art[j]) {
+            int in_basis = 0;
+            for (int i = 1; i < tb->rows; i++) if (tb->basis[i] == j) { in_basis = 1; break; }
+            visible[j] = in_basis;
+        } else {
+            visible[j] = 1;
+        }
+    }
 
-    // Mostrar razones si se pide (columna ratio_col)
-    if (show_ratio && ratio_col >= 0)
-    {
+    // --- Razones (si aplica) ---
+    if (show_ratio && ratio_col >= 0) {
         fprintf(f, "\\\\[0.2cm]\n");
         fprintf(f, "Cálculo de razones de valores positivos de la columna %d: \\\\\n\n", ratio_col);
 
         fprintf(f, "\\begin{tabular}{lr}\\toprule Fila & Razón \\\\\\midrule\n");
-        for (int i = 1; i < tb->rows; i++)
-        {
+        for (int i = 1; i < tb->rows; i++) {
             double a = tb->T[i][ratio_col];
-            if (a > EPS)
-            {
+            if (a > EPS) {
                 double rhs = tb->T[i][tb->cols - 1];
                 double r = rhs / a;
                 fprintf(f, "%d & %.6g \\\\\n", i, r);
             }
         }
+        fprintf(f, "\\bottomrule\\end{tabular}\n\n\\vspace{0.4cm}\n");
 
-        fprintf(f, "\\bottomrule\\end{tabular}\n\n\n\n");
-
-        fprintf(f, "\\vspace{0.4cm}\n");
-
-        if (highlight_row >= 0)
-        {
+        if (highlight_row >= 0) {
             double piv_val = tb->T[highlight_row][ratio_col];
             fprintf(f, "\\noindent Con %.6g como pivote en columna %d.\\\\\n", piv_val, ratio_col);
-        }
-        else
-        {
+        } else {
             fprintf(f, "\\noindent No se encuentran candidatos a pivote en columna %d.\\\\\n", ratio_col);
         }
     }
 
-    // Encabezados: Z | x's | s's | RHS
+    // --- Tabla ---
     fprintf(f, "\\begin{center}\n");
     fprintf(f, "\\rowcolors{2}{white}{gray!10}\n");
+
+    // contar visibles
+    int vcount = 0;
+    for (int j = 0; j < tb->cols; j++) if (visible[j]) vcount++;
+
     fprintf(f, "\\begin{tabular}{");
-    for (int j = 0; j < tb->cols; j++)
-        fprintf(f, "r");
+    for (int j = 0; j < vcount; j++) fprintf(f, "r");
     fprintf(f, "}\n\\toprule\n");
 
-    // Primera fila de nombres
-    fprintf(f, "$Z$");
-    for (int j = 0; j < vars; j++)
-        fprintf(f, " & %s", var_names[j]);
-    for (int j = 0; j < cons; j++)
-        fprintf(f, " & $s_{%d}$", j + 1);
-    fprintf(f, " & \\\\\\midrule\n");
+    // Encabezados
+    int printed = 0;
+    for (int j = 0; j < tb->cols; j++) {
+        if (!visible[j]) continue;
+        if (printed) fprintf(f, " & ");
+        const char *name = (tb->col_names && tb->col_names[j]) ? tb->col_names[j] : (j==0?"Z":(j==tb->cols-1?"RHS":"col"));
+        if (j == highlight_col) fprintf(f, "\\cellcolor{yellow!40}\\textbf{%s}", name);
+        else                    fprintf(f, "\\textbf{%s}", name);
+        printed++;
+    }
+    fprintf(f, " \\\\\\midrule\n");
 
     // Filas
-    for (int i = 0; i < tb->rows; i++)
-    {
-        for (int j = 0; j < tb->cols; j++)
-        {
+    for (int i = 0; i < tb->rows; i++) {
+        printed = 0;
+        for (int j = 0; j < tb->cols; j++) {
+            if (!visible[j]) continue;
+
+            if (printed) fprintf(f, " & ");
             int is_pivot = (i == highlight_row && j == highlight_col);
-            if (j == 0)
-            {
-                /* primera columna (sin & antes) */
-                if (is_pivot)
-                    fprintf(f, "\\cellcolor{yellow!40}");
+
+            // Mostrar "M" en fila 0 inicial (solo estética)
+            if (i == 0 && tb->show_M_in_initial_row0 && tb->row0_M_sign && tb->row0_M_sign[j] != 0) {
+                // Imprime algo tipo:  M   o   -M   o   (num ± M)
+                double num = tb->T[i][j] - tb->row0_M_sign[j]*tb->BIG_M; // separar parte M
+                if (is_pivot) fprintf(f, "\\cellcolor{yellow!40}");
+                if (fabs(num) > 1e-9)
+                    fprintf(f, "%.6g %c M", num, tb->row0_M_sign[j] > 0 ? '+' : '-');
+                else
+                    fprintf(f, "%sM", tb->row0_M_sign[j] > 0 ? "" : "-");
+            } else {
+                if (is_pivot) fprintf(f, "\\cellcolor{yellow!40}");
                 fprintf(f, "%.6g", tb->T[i][j]);
             }
-            else
-            {
-                /* para columnas posteriores imprimir primero el separador '&' */
-                fprintf(f, " & ");
-                if (is_pivot)
-                    fprintf(f, "\\cellcolor{yellow!40}");
-                fprintf(f, "%.6g", tb->T[i][j]);
-            }
+
+            printed++;
         }
         fprintf(f, "\\\\\n");
     }
-    fprintf(f, "\\bottomrule\n\\end{tabular}\n");
 
+    fprintf(f, "\\bottomrule\n\\end{tabular}\n");
     fprintf(f, "\\end{center}\n");
+
+    free(visible);
 }
+
 
 static void latex_print_all_variables(FILE *f, const Tableau *tb,
                                       const char **var_names, int vars, int cons)
@@ -960,24 +1103,6 @@ void on_load_clicked(GtkButton *button, gpointer user_data)
 // Borrar cuando se implemente la gran M
 void on_exec_clicked(GtkButton *button, gpointer user_data)
 {
-    // Verificar restricciones
-    for (int r = 0; r < combo_signs->len; r++)
-    {
-        GtkWidget *combo = g_ptr_array_index(combo_signs, r);
-        int sign = gtk_combo_box_get_active(GTK_COMBO_BOX(combo));
-
-        if (sign != 0) // 0 = <=, 1 = =, 2 = >=
-        {
-            GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(second_window),
-                                                       GTK_DIALOG_MODAL,
-                                                       GTK_MESSAGE_WARNING,
-                                                       GTK_BUTTONS_OK,
-                                                       "Actualmente solo se manejan restricciones del tipo \"menor o igual\" (<=).\n\nPor favor ajuste las restricciones e intente de nuevo.");
-            gtk_dialog_run(GTK_DIALOG(dialog));
-            gtk_widget_destroy(dialog);
-            return; // No continuar
-        }
-    }
 
     // Si todo está bien → continuar con la ejecución original:
     simplex(GTK_WIDGET(button), user_data);
