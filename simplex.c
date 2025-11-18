@@ -447,23 +447,31 @@ static Tableau *build_initial_tableau_from_inputs(int vars, int cons, int *unsup
         }
     }
 
-    // 6) Canonizar fila 0 respecto a variables BÁSICAS artificiales
-    //    (si una artificial está en la base y fila0 tiene coef ≠ 0 en esa col: fila0 -= coef * fila_básica)
-    for (int r = 1; r < rows; r++) {
-        int bc = tb->basis[r];
-        if (bc >= 0 && tb->is_art[bc]) {
-            double c0 = tb->T[0][bc];
-            if (fabs(c0) > EPS) {
-                for (int j = 0; j < cols; j++) tb->T[0][j] -= c0 * tb->T[r][j];
-                // tras canonizar, el símbolo "M" ya no aparece algebraicamente en la numérica,
-                // pero seguimos mostrando "M" en la tabla INICIAL a modo visual:
-            }
-        }
-    }
-
     return tb;
 }
 
+// Canoniza la fila 0 respecto a las variables básicas ARTIFICIALES
+// (para método de la Gran M)
+static void canonicalize_artificials(Tableau *tb)
+{
+    if (!tb || !tb->is_art) return;
+
+    int rows = tb->rows;
+    int cols = tb->cols;
+
+    for (int r = 1; r < rows; r++) {
+        int bc = tb->basis[r];
+        if (bc >= 0 && bc < cols && tb->is_art[bc]) {
+            double c0 = tb->T[0][bc];
+            if (fabs(c0) > EPS) {
+                // fila0 = fila0 - c0 * fila_r
+                for (int j = 0; j < cols; j++) {
+                    tb->T[0][j] -= c0 * tb->T[r][j];
+                }
+            }
+        }
+    }
+}
 
 // ========================
 // Selección de columna que entra
@@ -611,8 +619,15 @@ static int detect_multiple_solutions(const Tableau *tb)
 static SimplexRun *simplex_solve(Tableau *init, int vars, int cons, int is_max, int show_steps)
 {
     SimplexRun *run = simplex_run_new();
+
+    // Tabla inicial para el PDF: versión cruda con M en las artificiales
     run->initial = tableau_copy(init);
+
+    // Tabla de trabajo: copia que sí vamos a canonizar
     Tableau *tb = tableau_copy(init);
+
+    // Paso previo: canonizar fila 0 respecto a las artificiales básicas
+    canonicalize_artificials(tb);
 
     int iters = 0;
     while (iters++ < MAX_ITERS)
@@ -850,20 +865,58 @@ static void latex_print_table(FILE *f, const Tableau *tb, int vars, int cons,
 
             if (printed) fprintf(f, " & ");
             int is_pivot = (i == highlight_row && j == highlight_col);
+            double v = tb->T[i][j];
 
-            // Mostrar "M" en fila 0 inicial (solo estética)
-            if (i == 0 && tb->show_M_in_initial_row0 && tb->row0_M_sign && tb->row0_M_sign[j] != 0) {
-                // Imprime algo tipo:  M   o   -M   o   (num ± M)
-                double num = tb->T[i][j] - tb->row0_M_sign[j]*tb->BIG_M; // separar parte M
-                if (is_pivot) fprintf(f, "\\cellcolor{yellow!40}");
-                if (fabs(num) > 1e-9)
-                    fprintf(f, "%.6g %c M", num, tb->row0_M_sign[j] > 0 ? '+' : '-');
-                else
-                    fprintf(f, "%sM", tb->row0_M_sign[j] > 0 ? "" : "-");
-            } else {
-                if (is_pivot) fprintf(f, "\\cellcolor{yellow!40}");
-                fprintf(f, "%.6g", tb->T[i][j]);
+            if (is_pivot) {
+                fprintf(f, "\\cellcolor{yellow!40}");
             }
+
+            // --- Impresión especial para Big-M en la fila 0 ---
+            if (i == 0 && tb->BIG_M > 0.0) {
+                // Intentar escribir v como: v ≈ rest + k * M
+                double k = v / tb->BIG_M;
+                // Si la parte con M es "grande", la mostramos
+                if (fabs(k) > 0.5) {
+                    // redondeamos k a 3 decimales para que se vea bonito
+                    double k_rounded = round(k * 1000.0) / 1000.0;
+                    double rest = v - k_rounded * tb->BIG_M;
+
+                    int printed = 0;
+
+                    // Parte numérica (resto)
+                    if (fabs(rest) > 1e-6) {
+                        fprintf(f, "%.6g", rest);
+                        printed = 1;
+                    }
+
+                    // Parte con M
+                    if (fabs(k_rounded) > 1e-6) {
+                        if (printed) {
+                            fprintf(f, " %c ", (k_rounded > 0.0 ? '+' : '-'));
+                        } else if (k_rounded < 0.0) {
+                            fprintf(f, "-");
+                        }
+
+                        double abs_k = fabs(k_rounded);
+                        if (fabs(abs_k - 1.0) < 1e-6) {
+                            // coeficiente 1 -> solo "M"
+                            fprintf(f, "M");
+                        } else {
+                            fprintf(f, "%.3g M", abs_k);
+                        }
+                    }
+
+                    if (!printed && fabs(k_rounded) <= 1e-6) {
+                        // valor realmente pequeño
+                        fprintf(f, "0");
+                    }
+
+                    continue; // ya imprimimos esta celda
+                }
+            }
+
+            // --- Caso general: imprimir número normal ---
+            fprintf(f, "%.6g", v);
 
             printed++;
         }
