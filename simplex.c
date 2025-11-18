@@ -126,11 +126,12 @@ static Tableau *tableau_new(int rows, int cols)
     return tb;
 }
 
+
 static Tableau *tableau_copy(const Tableau *src)
 {
     if (!src) return NULL;
 
-    // Crea una nueva tabla con las mismas dimensiones
+    // Crear nueva tabla con mismas dimensiones
     Tableau *t = tableau_new(src->rows, src->cols);
 
     // Copiar matriz numérica
@@ -141,30 +142,78 @@ static Tableau *tableau_copy(const Tableau *src)
     // Copiar base
     memcpy(t->basis, src->basis, sizeof(int) * src->rows);
 
-    // Copiar campos escalares importantes
-    t->rows                   = src->rows;
-    t->cols                   = src->cols;
-    t->entering_col           = src->entering_col;
-    t->leaving_row            = src->leaving_row;
-    t->BIG_M                  = src->BIG_M;
-    t->show_M_in_initial_row0 = src->show_M_in_initial_row0;
-    t->row0_M_rhs_sign        = src->row0_M_rhs_sign;
+    // Copiar campos escalares
+    t->rows         = src->rows;
+    t->cols         = src->cols;
+    t->entering_col = src->entering_col;
+    t->leaving_row  = src->leaving_row;
+    t->BIG_M        = src->BIG_M;
 
-    // IMPORTANTE:
-    // No copiamos col_names, ni is_slack, ni is_sur, ni is_art, ni row0_M_sign.
-    // Los dejamos en NULL (tableau_new ya los inicializa en 0/NULL).
-    // latex_print_table verifica estos punteros antes de usarlos, así que no revienta.
-    // tableau_free también verifica antes de liberar, así que no habrá double free.
+    // === Copiar nombres de columnas ===
+    if (src->col_names) {
+        t->col_names = (char **)calloc(src->cols, sizeof(char *));
+        for (int j = 0; j < src->cols; j++) {
+            if (src->col_names[j]) {
+                t->col_names[j] = strdup(src->col_names[j]);
+            }
+        }
+    }
 
-    t->col_names   = NULL;
-    t->is_slack    = NULL;
-    t->is_sur      = NULL;
-    t->is_art      = NULL;
-    t->row0_M_sign = NULL;
+    // === Copiar flags de tipo de columna ===
+    if (src->is_slack) {
+        t->is_slack = (unsigned char *)calloc(src->cols, sizeof(unsigned char));
+        memcpy(t->is_slack, src->is_slack, src->cols * sizeof(unsigned char));
+    }
+
+    if (src->is_sur) {
+        t->is_sur = (unsigned char *)calloc(src->cols, sizeof(unsigned char));
+        memcpy(t->is_sur, src->is_sur, src->cols * sizeof(unsigned char));
+    }
+
+    if (src->is_art) {
+        t->is_art = (unsigned char *)calloc(src->cols, sizeof(unsigned char));
+        memcpy(t->is_art, src->is_art, src->cols * sizeof(unsigned char));
+    }
+
+    // === Por ahora NO queremos mostrar M en las copias ===
+    // (evitamos la lógica estética de M hasta que la queramos arreglar bien)
+    t->show_M_in_initial_row0 = 0;
+    t->row0_M_sign            = NULL;
+    t->row0_M_rhs_sign        = 0;
 
     return t;
 }
 
+// Imprime un nombre de columna de forma segura en LaTeX
+// - Si ya contiene '$', se asume que es código LaTeX y se imprime tal cual.
+// - Si no contiene '$', se envuelve en $ ... $ y se escapan solo caracteres realmente peligrosos.
+static void latex_escape_and_print(FILE *f, const char *s)
+{
+    // Si el nombre ya contiene $, asumimos que el usuario escribió LaTeX (ej: "$X_1$")
+    if (strchr(s, '$') != NULL) {
+        fputs(s, f);
+        return;
+    }
+
+    // Si no tiene $, lo ponemos en modo matemático nosotros
+    fputc('$', f);
+    for (; *s; s++) {
+        char c = *s;
+        if (c == '%') {
+            fprintf(f, "\\%%");
+        } else if (c == '&') {
+            fprintf(f, "\\&");
+        } else if (c == '#') {
+            fprintf(f, "\\#");
+        } else if (c == '$') {
+            fprintf(f, "\\$");
+        } else {
+            // OJO: aquí NO escapamos '_' porque estamos en modo matemático y queremos subíndices
+            fputc(c, f);
+        }
+    }
+    fputc('$', f);
+}
 
 
 
@@ -327,17 +376,18 @@ static Tableau *build_initial_tableau_from_inputs(int vars, int cons, int *unsup
     }
     int start_slack = c;
     for (int s = 0; s < cnt_slack; s++) {
-        char buf[16]; snprintf(buf, sizeof(buf), "s_%d", s+1);
+        char buf[32]; snprintf(buf, sizeof(buf), "$s_{%d}$", s+1);
+
         tb->col_names[c] = strdup(buf); tb->is_slack[c] = 1; c++;
     }
     int start_sur = c;
     for (int e = 0; e < cnt_sur; e++) {
-        char buf[16]; snprintf(buf, sizeof(buf), "e_%d", e+1);
+        char buf[16]; snprintf(buf, sizeof(buf), "$e_{%d}$", e+1);
         tb->col_names[c] = strdup(buf); tb->is_sur[c] = 1; c++;
     }
     int start_art = c;
     for (int a = 0; a < cnt_art; a++) {
-        char buf[16]; snprintf(buf, sizeof(buf), "a_%d", a+1);
+        char buf[16]; snprintf(buf, sizeof(buf), "$a_{%d}$", a+1);
         tb->col_names[c] = strdup(buf); tb->is_art[c] = 1; c++;
     }
     int cRHS = cols - 1; tb->col_names[cRHS] = strdup("RHS");
@@ -774,9 +824,20 @@ static void latex_print_table(FILE *f, const Tableau *tb, int vars, int cons,
     for (int j = 0; j < tb->cols; j++) {
         if (!visible[j]) continue;
         if (printed) fprintf(f, " & ");
-        const char *name = (tb->col_names && tb->col_names[j]) ? tb->col_names[j] : (j==0?"Z":(j==tb->cols-1?"RHS":"col"));
-        if (j == highlight_col) fprintf(f, "\\cellcolor{yellow!40}\\textbf{%s}", name);
-        else                    fprintf(f, "\\textbf{%s}", name);
+
+        const char *name = (tb->col_names && tb->col_names[j])
+                        ? tb->col_names[j]
+                        : (j==0 ? "Z" : (j==tb->cols-1 ? "RHS" : "col"));
+
+        if (j == highlight_col) {
+            fprintf(f, "\\cellcolor{yellow!40}\\textbf{");
+            latex_escape_and_print(f, name);
+            fprintf(f, "}");
+        } else {
+            fprintf(f, "\\textbf{");
+            latex_escape_and_print(f, name);
+            fprintf(f, "}");
+        }
         printed++;
     }
     fprintf(f, " \\\\\\midrule\n");
