@@ -933,10 +933,12 @@ static void latex_print_table(FILE *f, const Tableau *tb, int vars, int cons,
 static void latex_print_all_variables(FILE *f, const Tableau *tb,
                                       const char **var_names, int vars, int cons)
 {
+    (void)cons; // ya no lo usamos, pero lo dejamos para no cambiar firmas
+
     fprintf(f, "\\section*{Valores de todas las variables}\n");
     fprintf(f, "\\begin{tabular}{lr}\\toprule Variable & Valor \\\\ \\midrule\n");
 
-    // Recorremos columnas 1..vars (variables de decisión)
+    // 1. Variables de decisión X (columnas 1..vars)
     for (int j = 1; j <= vars; j++)
     {
         double val = 0.0;
@@ -951,8 +953,12 @@ static void latex_print_all_variables(FILE *f, const Tableau *tb,
         fprintf(f, "%s & %.6g \\\\\n", var_names[j - 1], val);
     }
 
-    // Recorremos holguras s_i (columnas vars+1 ... vars+cons)
-    for (int j = vars + 1; j <= vars + cons; j++)
+    // 2. Holguras s_i y excesos e_i
+    int slack_idx = 0;
+    int sur_idx   = 0;
+
+    // Recorremos todas las columnas “internas” (después de las X y antes de RHS)
+    for (int j = vars + 1; j < tb->cols - 1; j++)
     {
         double val = 0.0;
         for (int i = 1; i < tb->rows; i++)
@@ -963,11 +969,25 @@ static void latex_print_all_variables(FILE *f, const Tableau *tb,
                 break;
             }
         }
-        fprintf(f, "s_{%d} & %.6g \\\\\n", j - vars, val);
+
+        // Holgura
+        if (tb->is_slack && tb->is_slack[j])
+        {
+            slack_idx++;
+            fprintf(f, "s_{%d} & %.6g \\\\\n", slack_idx, val);
+        }
+        // Exceso
+        else if (tb->is_sur && tb->is_sur[j])
+        {
+            sur_idx++;
+            fprintf(f, "e_{%d} & %.6g \\\\\n", sur_idx, val);
+        }
+        // Artificiales (is_art) NO se imprimen
     }
 
     fprintf(f, "\\bottomrule\\end{tabular}\\\\[0.3cm]\n");
 }
+
 
 // ========================
 //  HANDLERS GUI
