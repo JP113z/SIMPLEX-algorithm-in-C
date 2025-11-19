@@ -613,6 +613,60 @@ static int detect_multiple_solutions(const Tableau *tb)
 }
 
 // ========================
+// Detección de problema NO FACTIBLE (Gran M)
+// ========================
+
+// Devuelve 1 si existe alguna variable artificial básica con RHS > 0
+static int tableau_has_positive_artificial(const Tableau *tb, int *out_row, int *out_col, double *out_val)
+{
+    if (!tb || !tb->is_art) return 0;
+
+    int rows = tb->rows;
+    int cols = tb->cols;
+
+    for (int i = 1; i < rows; i++)
+    {
+        int bc = tb->basis[i];
+        if (bc >= 0 && bc < cols && tb->is_art[bc])
+        {
+            double rhs = tb->T[i][cols - 1];
+            if (rhs > EPS)
+            {
+                if (out_row) *out_row = i;
+                if (out_col) *out_col = bc;
+                if (out_val) *out_val = rhs;
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+// (Opcional) Detectar si en la fila 0 todavía hay un término tipo "M"
+// en alguna columna artificial. Si se quiere usar como criterio secundario.
+static int tableau_has_M_in_row0(const Tableau *tb, int *out_col)
+{
+    if (!tb || !tb->is_art || tb->BIG_M <= 0.0) return 0;
+
+    int cols = tb->cols;
+    for (int j = 0; j < cols; j++)
+    {
+        if (tb->is_art[j])
+        {
+            double v = tb->T[0][j];
+            // Si el coeficiente es "grande" en comparación con M,
+            // interpretamos que sigue habiendo un término proporcional a M.
+            if (fabs(v) > 0.5 * tb->BIG_M)
+            {
+                if (out_col) *out_col = j;
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+// ========================
 // Ejecutar Símplex (max/min)
 // Guarda pasos si show_steps != 0
 // ========================
@@ -696,6 +750,20 @@ static SimplexRun *simplex_solve(Tableau *init, int vars, int cons, int is_max, 
 
     run->final = tableau_copy(tb);
 
+    // --- Verificar NO FACTIBILIDAD (Gran M) ---
+    // Criterio estándar: si en la tabla final queda alguna variable artificial
+    // básica con RHS > 0, el problema es no factible.
+    if (run->status == 0)
+    {
+        int r_art = -1, c_art = -1;
+        double val_art = 0.0;
+
+        if (tableau_has_positive_artificial(tb, &r_art, &c_art, &val_art))
+        {
+            run->status = 2;   // 2 = No factible
+        }
+    }
+
     /* solución vectorial para final (solución 1) */
     run->solution = (double *)calloc(vars, sizeof(double));
     for (int i = 1; i < run->final->rows; i++)
@@ -707,6 +775,7 @@ static SimplexRun *simplex_solve(Tableau *init, int vars, int cons, int is_max, 
         }
     }
     run->z_value = run->final->T[0][run->final->cols - 1];
+
 
     /* Detectar múltiples soluciones sobre la tabla final */
     run->has_multiple = detect_multiple_solutions(run->final);
@@ -1758,47 +1827,48 @@ void write_file(int vars, int cons, GtkWidget *box_model, int show_tables, const
             fprintf(f, "No se pudo identificar la columna entrante en la tabla final. Revise la entrada de datos y la tabla intermedia para más detalles.\\\\[0.2cm]\n");
         }
     }
+    else if (run->status == 2)
+    {
+        /* --- CASO NO FACTIBLE --- */
+        fprintf(f, "\\textbf{El problema es no factible.}\\\\[0.3cm]\n");
+
+        fprintf(f,
+            "El modelo se resolvió utilizando el \\textit{método de la Gran M}, "
+            "introduciendo variables artificiales para poder construir una base inicial.\\\\[0.2cm]\n");
+
+        fprintf(f,
+            "En la \\textbf{tabla final}, después de que ya no hay columnas candidatas para entrar en la base "
+            "(es decir, ya no hay coeficientes negativos en la fila de la función objetivo para el caso de "
+            "maximización), se observa que al menos una \\textbf{variable artificial} sigue siendo básica con "
+            "un valor positivo en el término independiente (RHS).\\\\[0.2cm]\n");
+
+
+        fprintf(f,
+            "Desde el punto de vista geométrico, esto implica que no hay ningún punto en el espacio de variables "
+            "que cumpla con todas las desigualdades (o igualdades) planteadas al mismo tiempo. "
+            "Por ello, no es posible calcular un valor óptimo de la función objetivo.\\\\[0.3cm]\n");
+
+        fprintf(f,
+            "Posibles causas típicas de este comportamiento incluyen: restricciones contradictorias entre sí "
+            "(por ejemplo, exigir simultáneamente que una variable sea mayor o igual que un valor y, al mismo tiempo, "
+            "menor o igual que otro valor incompatible), errores en signos, o en la formulación numérica de los parámetros "
+            "del modelo. Se recomienda revisar cuidadosamente las restricciones originales.\\\\[0.3cm]\n");
+    }
     else
     {
-        // Solución 1
-        /*
-        if (run->solution)
-        {
-            fprintf(f, "$Z = %.6g$\\\\\n", run->z_value);
-            fprintf(f, "\\\\\\\n");
-            fprintf(f, "\\vspace{1cm}\n");
-            fprintf(f, "\\begin{tabular}{lr}\\toprule Variable & Valor \\\\ \\midrule\n");
-            for (int j = 0; j < vars; j++)
-                fprintf(f, "%s & %.6g \\\\\n", var_names[j], run->solution[j]);
-            fprintf(f, "\\bottomrule\\end{tabular}\\\\[0.3cm]\n");
-        }
-        */
-
+        /* --- CASO SOLUCIÓN ÓPTIMA (status == 0) --- */
         if (run->final)
         {
             fprintf(f, "$Z = %.6g$\\\\[0.3cm]\n", run->z_value);
             latex_print_all_variables(f, run->final, var_names, vars, cons);
         }
-        // Solución 2 (si existe)
-        /*
-        if (run->solution_alt)
-        {
 
-            fprintf(f, "\\subsection*{Solución 2 (tras pivote adicional)}\n");
-            fprintf(f, "\\vspace{0.3cm}\n");
-            fprintf(f, "\\begin{tabular}{lr}\\toprule Variable & Valor \\\\ \\midrule\n");
-            for (int j = 0; j < vars; j++)
-                fprintf(f, "%s & %.6g \\\\\n", var_names[j], run->solution_alt[j]);
-            fprintf(f, "\\bottomrule\\end{tabular}\\\\[0.3cm]\n");
-        }
-        */
         if (run->final_alt)
         {
             fprintf(f, "\\subsection*{Solución 2 (tras pivote adicional)}\\\\[0.3cm]\n");
             fprintf(f, "$Z = %.6g$\\\\[0.3cm]\n", run->z_value);
             latex_print_all_variables(f, run->final_alt, var_names, vars, cons);
         }
-
         // Combinaciones convexas
         if (run->conv_solutions && run->conv_count > 0)
         {
