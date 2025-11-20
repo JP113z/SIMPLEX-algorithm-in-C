@@ -397,7 +397,7 @@ static Tableau *build_initial_tableau_from_inputs(int vars, int cons, int *unsup
     for (int j = 0; j < vars; j++) {
         const char *coef_str = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_obj_coefs, j)));
         double cj = parse_coef(coef_str);
-        tb->T[0][1 + j] = -cj; // como ya usabas (Max usa "más negativo", Min "más positivo")
+        tb->T[0][1 + j] = -cj;
     }
 
     // 5) Llenar restricciones
@@ -962,7 +962,7 @@ static void latex_print_table(FILE *f, const Tableau *tb, int vars, int cons,
                         fprintf(f, "0");
                     }
 
-                    continue; // ya imprimimos esta celda
+                    continue;
                 }
             }
 
@@ -988,7 +988,7 @@ static void latex_print_table(FILE *f, const Tableau *tb, int vars, int cons,
 static void latex_print_all_variables(FILE *f, const Tableau *tb,
                                       const char **var_names, int vars, int cons)
 {
-    (void)cons; // ya no lo usamos, pero lo dejamos para no cambiar firmas
+    (void)cons; 
 
     fprintf(f, "\\section*{Valores de todas las variables}\n");
     fprintf(f, "\\begin{tabular}{lr}\\toprule Variable & Valor \\\\ \\midrule\n");
@@ -1040,7 +1040,7 @@ static void latex_print_all_variables(FILE *f, const Tableau *tb,
             double out = (fabs(val) < EPS) ? 0.0 : val;
             fprintf(f, "e_{%d} & %.6g \\\\\n", sur_idx, out);
         }
-        // Artificiales (is_art) NO se imprimen
+       
     }
 
     fprintf(f, "\\bottomrule\\end{tabular}\\\\[0.3cm]\n");
