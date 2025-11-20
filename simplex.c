@@ -1636,6 +1636,21 @@ void write_file(int vars, int cons, GtkWidget *box_model, int show_tables, const
             "\\end{itemize}\n\n"
 
             "\\bigskip\n");
+    
+    // Explicacion Gran M
+    fprintf(f, "\\subsection*{Método de la Gran M}\n");
+    fprintf(f,
+            "El \\textit{método de la Gran M} es una técnica para construir una base inicial cuando el problema original contiene "
+            "restricciones de igualdad o de tipo $\\geq$, que no permiten obtener una solución básica factible inmediatamente. "
+            "Se procede de la siguiente forma:\\\\[0.2cm]\n"
+            "\\begin{itemize}\n"
+            "  \\item Se introducen variables artificiales ($a_i$) en cada restricción de tipo $=$ o $\\geq$ para formar una base inicial.\n"
+            "  \\item En la función objetivo se añade una penalización muy grande $M$ multiplicando cada variable artificial (por ejemplo, $+M a_i$ para maximizar). "
+            "        De este modo, cualquier solución que deje artificiales básicas con valor positivo tendrá un costo muy alto y será descartada.\n"
+            "  \\item Antes de empezar las iteraciones se canoniza la fila 0 (fila de la función objetivo) para que refleje correctamente las contribuciones de $M$; "
+            "        luego se ejecuta el algoritmo Simplex normal tratando las $M$ como constantes grandes durante los cálculos.\n"
+            "  \\item Si al final del proceso alguna variable artificial permanece básica con valor positivo en el RHS, el problema original es no factible.\n"
+            "\\end{itemize}\n\n");
 
     // --- Problema original ---
     fprintf(f, "\\section*{Problema original}\n");
