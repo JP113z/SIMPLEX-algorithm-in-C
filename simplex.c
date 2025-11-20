@@ -390,7 +390,7 @@ static Tableau *build_initial_tableau_from_inputs(int vars, int cons, int *unsup
         char buf[16]; snprintf(buf, sizeof(buf), "$a_{%d}$", a+1);
         tb->col_names[c] = strdup(buf); tb->is_art[c] = 1; c++;
     }
-    int cRHS = cols - 1; tb->col_names[cRHS] = strdup("RHS");
+    int cRHS = cols - 1; tb->col_names[cRHS] = strdup(" ");
 
     // 4) Fila 0: Z y FO
     tb->T[0][0] = 1.0;
@@ -583,6 +583,12 @@ static void pivot(Tableau *tb, int pr, int pc)
     tb->basis[pr] = pc;
     tb->entering_col = pc;
     tb->leaving_row = pr;
+
+    // Normalizar residuos
+    for (int i = 0; i < tb->rows; i++)
+        for (int j = 0; j < tb->cols; j++)
+            if (fabs(tb->T[i][j]) < EPS)
+                tb->T[i][j] = 0.0;
 }
 
 // ========================
@@ -911,7 +917,7 @@ static void latex_print_table(FILE *f, const Tableau *tb, int vars, int cons,
 
         const char *name = (tb->col_names && tb->col_names[j])
                         ? tb->col_names[j]
-                        : (j==0 ? "Z" : (j==tb->cols-1 ? "RHS" : "col"));
+                        : (j==0 ? "Z" : (j==tb->cols-1 ? " " : "col"));
 
         if (j == highlight_col) {
             fprintf(f, "\\cellcolor{yellow!40}\\textbf{");
@@ -985,7 +991,11 @@ static void latex_print_table(FILE *f, const Tableau *tb, int vars, int cons,
             }
 
             // --- Caso general: imprimir número normal ---
-            fprintf(f, "%.6g", v);
+            // si es muy cercano a 0, imprimir 0
+            if (fabs(v) < EPS)
+                fprintf(f, "0");
+            else
+                fprintf(f, "%.6g", v);
 
             printed++;
         }
@@ -1019,7 +1029,8 @@ static void latex_print_all_variables(FILE *f, const Tableau *tb,
                 break;
             }
         }
-        fprintf(f, "%s & %.6g \\\\\n", var_names[j - 1], val);
+        double out = (fabs(val) < EPS) ? 0.0 : val;
+        fprintf(f, "%s & %.6g \\\\\n", var_names[j - 1], out);
     }
 
     // 2. Holguras s_i y excesos e_i
@@ -1043,13 +1054,15 @@ static void latex_print_all_variables(FILE *f, const Tableau *tb,
         if (tb->is_slack && tb->is_slack[j])
         {
             slack_idx++;
-            fprintf(f, "s_{%d} & %.6g \\\\\n", slack_idx, val);
+            double out = (fabs(val) < EPS) ? 0.0 : val;
+            fprintf(f, "s_{%d} & %.6g \\\\\n", slack_idx, out);
         }
         // Exceso
         else if (tb->is_sur && tb->is_sur[j])
         {
             sur_idx++;
-            fprintf(f, "e_{%d} & %.6g \\\\\n", sur_idx, val);
+            double out = (fabs(val) < EPS) ? 0.0 : val;
+            fprintf(f, "e_{%d} & %.6g \\\\\n", sur_idx, out);
         }
         // Artificiales (is_art) NO se imprimen
     }
