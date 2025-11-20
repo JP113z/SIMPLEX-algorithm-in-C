@@ -648,30 +648,6 @@ static int tableau_has_positive_artificial(const Tableau *tb, int *out_row, int 
     return 0;
 }
 
-// (Opcional) Detectar si en la fila 0 todavía hay un término tipo "M"
-// en alguna columna artificial. Si se quiere usar como criterio secundario.
-static int tableau_has_M_in_row0(const Tableau *tb, int *out_col)
-{
-    if (!tb || !tb->is_art || tb->BIG_M <= 0.0) return 0;
-
-    int cols = tb->cols;
-    for (int j = 0; j < cols; j++)
-    {
-        if (tb->is_art[j])
-        {
-            double v = tb->T[0][j];
-            // Si el coeficiente es "grande" en comparación con M,
-            // interpretamos que sigue habiendo un término proporcional a M.
-            if (fabs(v) > 0.5 * tb->BIG_M)
-            {
-                if (out_col) *out_col = j;
-                return 1;
-            }
-        }
-    }
-    return 0;
-}
-
 // ========================
 // Ejecutar Símplex (max/min)
 // Guarda pasos si show_steps != 0
