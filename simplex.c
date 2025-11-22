@@ -873,13 +873,25 @@ static void latex_print_table(FILE *f, const Tableau *tb, int vars, int cons,
         }
     }
 
-    // --- Tabla ---
+    // Decidir si la tabla es "ancha"
+    int is_wide = (tb->cols > 10);  // umbral de columnas para considerar "ancha"
+
     fprintf(f, "\\begin{center}\n");
+
+    if (is_wide) {
+        // Letra más pequeña y columnas más juntitas
+        fprintf(f, "\\scriptsize\n");
+        fprintf(f, "\\setlength{\\tabcolsep}{2pt}\n");
+        // Escalar la tabla al ancho de la página
+        fprintf(f, "\\resizebox{\\textwidth}{!}{%%\n");
+    }
+
     fprintf(f, "\\rowcolors{2}{white}{gray!10}\n");
 
     // contar visibles
     int vcount = 0;
-    for (int j = 0; j < tb->cols; j++) if (visible[j]) vcount++;
+    for (int j = 0; j < tb->cols; j++)
+        if (visible[j]) vcount++;
 
     fprintf(f, "\\begin{tabular}{");
     for (int j = 0; j < vcount; j++) fprintf(f, "r");
@@ -979,6 +991,12 @@ static void latex_print_table(FILE *f, const Tableau *tb, int vars, int cons,
     }
 
     fprintf(f, "\\bottomrule\n\\end{tabular}\n");
+
+    if (is_wide) {
+        // cerrar el \resizebox{...}{...}{ ... }
+        fprintf(f, "}\n");
+    }
+
     fprintf(f, "\\end{center}\n");
 
     free(visible);
@@ -1589,7 +1607,17 @@ void write_file(int vars, int cons, GtkWidget *box_model, int show_tables, const
     fprintf(f, "\\usepackage{tikz}\n");
     fprintf(f, "\\usepackage{pgfplots}\n");
     fprintf(f, "\\pgfplotsset{compat=1.18}\n");
-    fprintf(f, "\\geometry{margin=0.8in}\n");
+
+    // UMBRAL para considerar "muchas columnas"
+    int ancho_grande = (initial->cols > 10);  // cantidad de columnas
+
+    if (ancho_grande) {
+        // Documento completo en horizontal
+        fprintf(f, "\\geometry{margin=0.8in, landscape}\n");
+    } else {
+        // Documento normal en vertical
+        fprintf(f, "\\geometry{margin=0.8in}\n");
+    }
     fprintf(f, "\\title{Proyecto 4: SIMPLEX}\n");
     fprintf(f, "\\author{Investigación de Operaciones}\n");
     fprintf(f, "\\date{}\n");
