@@ -43,17 +43,27 @@ El método Simplex avanza de un vértice a otro a través de las aristas del pol
 \end{itemize}
 
 \bigskip
+\subsection*{Método de la Gran M}
+El \textit{método de la Gran M} es una técnica para construir una base inicial cuando el problema original contiene restricciones de igualdad o de tipo $\geq$, que no permiten obtener una solución básica factible inmediatamente. Se procede de la siguiente forma:\\[0.2cm]
+\begin{itemize}
+  \item Se introducen variables artificiales ($a_i$) en cada restricción de tipo $=$ o $\geq$ para formar una base inicial.
+  \item En la función objetivo se añade una penalización muy grande $M$ multiplicando cada variable artificial (por ejemplo, $+M a_i$ para maximizar).         De este modo, cualquier solución que deje artificiales básicas con valor positivo tendrá un costo muy alto y será descartada.
+  \item Antes de empezar las iteraciones se canoniza la fila 0 (fila de la función objetivo) para que refleje correctamente las contribuciones de $M$;         luego se ejecuta el algoritmo Simplex normal tratando las $M$ como constantes grandes durante los cálculos.
+  \item Si al final del proceso alguna variable artificial permanece básica con valor positivo en el RHS, el problema original es no factible.
+\end{itemize}
+
 \section*{Problema original}
-Nombre del problema: \textbf{Problema 1 P1}\\[0.3cm]
+Nombre del problema: \textbf{Problema 1 P2}\\[0.3cm]
 El problema original se puede formular como un problema de programación lineal, donde se busca optimizar una función objetivo sujeta a ciertas restricciones:
 
 \\[0.5cm]
 \vspace{0.4cm}
-\textbf{Maximizar} \textbf{Z = } $X_4$\\[0.5cm]
+\textbf{Minimizar \\
+} \textbf{Z = } $X_4$\\[0.5cm]
 \textbf{Sujeto a:}\\
-5 $X_1$ + $X_2$ + 4 $X_3$ - $X_4$ \geq 0 \\
-6 $X_2$ + 4 $X_3$ - $X_4$ \geq 0 \\
-6 $X_1$ + 4 $X_2$ + 8 $X_3$ - $X_4$ \geq 0 \\
+5 $X_1$ + 6 $X_3$ - $X_4$ \leq 0 \\
+$X_1$ + 6 $X_2$ + 4 $X_3$ - $X_4$ \leq 0 \\
+4 $X_1$ + 4 $X_2$ + 8 $X_3$ - $X_4$ \leq 0 \\
 $X_1$ + $X_2$ + $X_3$ = 1 \\
 \\[0.3cm]
 \textbf{Con } $X_1$, $X_2$, $X_3$, $X_4$ \geq 0\\[0.5cm]
@@ -61,14 +71,14 @@ $X_1$ + $X_2$ + $X_3$ = 1 \\
 \section*{Tabla inicial}
 \begin{center}
 \rowcolors{2}{white}{gray!10}
-\begin{tabular}{rrrrrrrrrrrrr}
+\begin{tabular}{rrrrrrrrrr}
 \toprule
-\textbf{$Z$} & \textbf{$X_1$} & \textbf{$X_2$} & \textbf{$X_3$} & \textbf{$X_4$} & \textbf{$e_{1}$} & \textbf{$e_{2}$} & \textbf{$e_{3}$} & \textbf{$a_{1}$} & \textbf{$a_{2}$} & \textbf{$a_{3}$} & \textbf{$a_{4}$} & \textbf{$RHS$} \\\midrule
-1 & -0 & -0 & -0 & -1 & 0 & 0 & 0 & M & M & M & M & 0\\
-0 & 5 & 1 & 4 & -1 & -1 & 0 & 0 & 1 & 0 & 0 & 0 & 0\\
-0 & 0 & 6 & 4 & -1 & 0 & -1 & 0 & 0 & 1 & 0 & 0 & 0\\
-0 & 6 & 4 & 8 & -1 & 0 & 0 & -1 & 0 & 0 & 1 & 0 & 0\\
-0 & 1 & 1 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 1 & 1\\
+\textbf{$Z$} & \textbf{$X_1$} & \textbf{$X_2$} & \textbf{$X_3$} & \textbf{$X_4$} & \textbf{$s_{1}$} & \textbf{$s_{2}$} & \textbf{$s_{3}$} & \textbf{$a_{1}$} & \textbf{$ $} \\\midrule
+1 & 0 & 0 & 0 & -1 & 0 & 0 & 0 & -M & 0\\
+0 & 5 & 0 & 6 & -1 & 1 & 0 & 0 & 0 & 0\\
+0 & 1 & 6 & 4 & -1 & 0 & 1 & 0 & 0 & 0\\
+0 & 4 & 4 & 8 & -1 & 0 & 0 & 1 & 0 & 0\\
+0 & 1 & 1 & 1 & 0 & 0 & 0 & 0 & 1 & 1\\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -77,12 +87,27 @@ $X_1$ + $X_2$ + $X_3$ = 1 \\
 \rowcolors{2}{white}{gray!10}
 \begin{tabular}{rrrrrrrrr}
 \toprule
-\textbf{$Z$} & \textbf{$X_1$} & \textbf{$X_2$} & \textbf{$X_3$} & \textbf{$X_4$} & \textbf{$e_{1}$} & \textbf{$e_{2}$} & \textbf{$e_{3}$} & \textbf{$RHS$} \\\midrule
-1 & 0 & 2 & 0 & 0 & 0.8 & 0.2 & 0 & 4\\
-0 & 0 & 2 & 1 & 0 & 0.2 & -0.2 & 0 & 1\\
-0 & 0 & 2 & 0 & 1 & 0.8 & 0.2 & 0 & 4\\
-0 & 1 & -1 & 0 & 0 & -0.2 & 0.2 & 0 & -2.22045e-16\\
-0 & 0 & 4 & 0 & 0 & -0.4 & -0.6 & 1 & 4\\
+\textbf{$Z$} & \textbf{$X_1$} & \textbf{$X_2$} & \textbf{$X_3$} & \textbf{$X_4$} & \textbf{$s_{1}$} & \textbf{$s_{2}$} & \textbf{$s_{3}$} & \textbf{$ $} \\\midrule
+1 & 0 & 0 & -4 & 0 & 0 & 0 & -1 & 4\\
+0 & 1 & 0 & 1.2 & 0 & 0 & -0.2 & 0.2 & 0.4\\
+0 & 0 & 1 & -0.2 & 0 & 0 & 0.2 & -0.2 & 0.6\\
+0 & 0 & 0 & -4 & 1 & 0 & 0 & -1 & 4\\
+0 & 0 & 0 & -4 & 0 & 1 & 1 & -2 & 2\\
+\bottomrule
+\end{tabular}
+\end{center}
+En la solución 1, se puede observar que existe al menos una variable no básica con costo reducido cero, lo que indica la presencia de soluciones múltiples óptimas. Al realizar un pivote adicional utilizando dicha variable como entrante, se obtiene otra solución básica factible equivalente:\\[0.3cm]
+\subsection*{Tabla final 2 (solución 2 tras un pivote adicional)}
+\begin{center}
+\rowcolors{2}{white}{gray!10}
+\begin{tabular}{rrrrrrrrr}
+\toprule
+\textbf{$Z$} & \textbf{$X_1$} & \textbf{$X_2$} & \textbf{$X_3$} & \textbf{$X_4$} & \textbf{$s_{1}$} & \textbf{$s_{2}$} & \textbf{$s_{3}$} & \textbf{$ $} \\\midrule
+1 & 0 & 0 & -4 & 0 & 0 & 0 & -1 & 4\\
+0 & 1 & 0 & 0.4 & 0 & 0.2 & 0 & -0.2 & 0.8\\
+0 & 0 & 1 & 0.6 & 0 & -0.2 & 0 & 0.2 & 0.2\\
+0 & 0 & 0 & -4 & 1 & 0 & 0 & -1 & 4\\
+0 & 0 & 0 & -4 & 0 & 1 & 1 & -2 & 2\\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -90,14 +115,50 @@ $X_1$ + $X_2$ + $X_3$ = 1 \\
 $Z = 4$\\[0.3cm]
 \section*{Valores de todas las variables}
 \begin{tabular}{lr}\toprule Variable & Valor \\ \midrule
-$X_1$ & -2.22045e-16 \\
-$X_2$ & 0 \\
-$X_3$ & 1 \\
+$X_1$ & 0.4 \\
+$X_2$ & 0.6 \\
+$X_3$ & 0 \\
 $X_4$ & 4 \\
-e_{1} & 0 \\
-e_{2} & 0 \\
-e_{3} & 4 \\
+s_{1} & 2 \\
+s_{2} & 0 \\
+s_{3} & 0 \\
 \bottomrule\end{tabular}\\[0.3cm]
+\subsection*{Solución 2 (tras pivote adicional)}\\[0.3cm]
+$Z = 4$\\[0.3cm]
+\section*{Valores de todas las variables}
+\begin{tabular}{lr}\toprule Variable & Valor \\ \midrule
+$X_1$ & 0.8 \\
+$X_2$ & 0.2 \\
+$X_3$ & 0 \\
+$X_4$ & 4 \\
+s_{1} & 0 \\
+s_{2} & 2 \\
+s_{3} & 0 \\
+\bottomrule\end{tabular}\\[0.3cm]
+\subsection*{Soluciones adicionales (combinaciones convexas)}
+Si existen soluciones múltiples, cualquier combinación convexa de dos soluciones básicas produce otra solución factible. Aquí usamos la fórmula: $x(\alpha)=\alpha x^{(1)} + (1-\alpha) x^{(2)}$, con $\alpha \in [0,1]$.\\[0.2cm]
+\textbf{Alfa = 0.25}:\\
+\begin{tabular}{lr}\toprule Variable & Valor \\ \midrule
+$X_1$ & 0.7 \\
+$X_2$ & 0.3 \\
+$X_3$ & 0 \\
+$X_4$ & 4 \\
+\bottomrule\end{tabular}\\[0.2cm]
+\textbf{Alfa = 0.5}:\\
+\begin{tabular}{lr}\toprule Variable & Valor \\ \midrule
+$X_1$ & 0.6 \\
+$X_2$ & 0.4 \\
+$X_3$ & 0 \\
+$X_4$ & 4 \\
+\bottomrule\end{tabular}\\[0.2cm]
+\textbf{Alfa = 0.75}:\\
+\begin{tabular}{lr}\toprule Variable & Valor \\ \midrule
+$X_1$ & 0.5 \\
+$X_2$ & 0.5 \\
+$X_3$ & 0 \\
+$X_4$ & 4 \\
+\bottomrule\end{tabular}\\[0.2cm]
+\vspace{0.3cm}
 \subsection*{Problema degenerado}
 Se detectó degeneración durante la ejecución del Simplex. \newline
 Definición: una solución básica factible es degenerada cuando alguna variable básica tiene valor cero. Esto puede ocurrir cuando en el test de razón mínima la razón mínima es 0 o cuando hay un empate entre razones.\\[0.2cm]

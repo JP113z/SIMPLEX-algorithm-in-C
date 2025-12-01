@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2025.11.6)  19 NOV 2025 17:15
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2025.11.6)  24 NOV 2025 12:11
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -678,6 +678,18 @@ Overfull \hbox (12.11172pt too wide) in paragraph at lines 41--42
 o-ced-imiento del Sim-plex se basa en con-cep-tos geom^^Setricos
  []
 
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <12> on input line 47.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <8> on input line 47.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <6> on input line 47.
+
+Underfull \hbox (badness 10000) in paragraph at lines 47--48
+
+ []
+
+[2]
 
 ! LaTeX Error: There's no line here to end.
 
@@ -685,38 +697,16 @@ See the LaTeX manual or LaTeX Companion for explanation.
 Type  H <return>  for immediate help.
  ...                                              
                                                   
-l.50 \\[0.5cm]
+l.59 \\[0.5cm]
               
 Your command was ignored.
 Type  I <command> <return>  to replace it with another command,
 or  <return>  to continue without it.
 
-LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <12> on input line 52.
-LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <8> on input line 52.
-LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <6> on input line 52.
 ! Missing $ inserted.
 <inserted text> 
                 $
-l.54 5 $X_1$ + $X_2$ + 4 $X_3$ - $X_4$ \geq
-                                            0 \\
-I've inserted a begin-math/end-math symbol since I think
-you left one out. Proceed, with fingers crossed.
-
-! Missing $ inserted.
-<inserted text> 
-                $
-l.55 6 $X_
-          2$ + 4 $X_3$ - $X_4$ \geq 0 \\
-I've inserted a begin-math/end-math symbol since I think
-you left one out. Proceed, with fingers crossed.
-
-! Missing $ inserted.
-<inserted text> 
-                $
-l.55 6 $X_2$ + 4 $X_3$ - $X_4$ \geq
+l.64 5 $X_1$ + 6 $X_3$ - $X_4$ \leq
                                     0 \\
 I've inserted a begin-math/end-math symbol since I think
 you left one out. Proceed, with fingers crossed.
@@ -724,15 +714,31 @@ you left one out. Proceed, with fingers crossed.
 ! Missing $ inserted.
 <inserted text> 
                 $
-l.56 6 $X_
-          1$ + 4 $X_2$ + 8 $X_3$ - $X_4$ \geq 0 \\
+l.65 $X_
+        1$ + 6 $X_2$ + 4 $X_3$ - $X_4$ \leq 0 \\
 I've inserted a begin-math/end-math symbol since I think
 you left one out. Proceed, with fingers crossed.
 
 ! Missing $ inserted.
 <inserted text> 
                 $
-l.56 6 $X_1$ + 4 $X_2$ + 8 $X_3$ - $X_4$ \geq
+l.65 $X_1$ + 6 $X_2$ + 4 $X_3$ - $X_4$ \leq
+                                            0 \\
+I've inserted a begin-math/end-math symbol since I think
+you left one out. Proceed, with fingers crossed.
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.66 4 $X_
+          1$ + 4 $X_2$ + 8 $X_3$ - $X_4$ \leq 0 \\
+I've inserted a begin-math/end-math symbol since I think
+you left one out. Proceed, with fingers crossed.
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.66 4 $X_1$ + 4 $X_2$ + 8 $X_3$ - $X_4$ \leq
                                               0 \\
 I've inserted a begin-math/end-math symbol since I think
 you left one out. Proceed, with fingers crossed.
@@ -740,7 +746,7 @@ you left one out. Proceed, with fingers crossed.
 ! Missing $ inserted.
 <inserted text> 
                 $
-l.57 $X_
+l.67 $X_
         1$ + $X_2$ + $X_3$ = 1 \\
 I've inserted a begin-math/end-math symbol since I think
 you left one out. Proceed, with fingers crossed.
@@ -748,7 +754,7 @@ you left one out. Proceed, with fingers crossed.
 ! Missing $ inserted.
 <inserted text> 
                 $
-l.59 \textbf{Con } $X_1$, $X_2$, $X_3$, $X_4$ \geq
+l.69 \textbf{Con } $X_1$, $X_2$, $X_3$, $X_4$ \geq
                                                    0\\[0.5cm]
 I've inserted a begin-math/end-math symbol since I think
 you left one out. Proceed, with fingers crossed.
@@ -756,88 +762,173 @@ you left one out. Proceed, with fingers crossed.
 ! Missing $ inserted.
 <inserted text> 
                 $
-l.61 \section
+l.71 \section
              *{Tabla inicial}
 I've inserted a begin-math/end-math symbol since I think
 you left one out. Proceed, with fingers crossed.
 
-[2]
-Underfull \hbox (badness 10000) in paragraph at lines 90--91
 
- []
-
-! Missing $ inserted.
-<inserted text> 
-                $
-l.97 e_
-       {1} & 0 \\
-I've inserted a begin-math/end-math symbol since I think
-you left one out. Proceed, with fingers crossed.
-
-! Missing $ inserted.
-<inserted text> 
-                $
-l.97 e_{1} &
-             0 \\
-I've inserted something that you may have forgotten.
-(See the <inserted text> above.)
-With luck, this will get me unwedged. But if you
-really didn't forget anything, try typing `2' now; then
-my insertion and my current dilemma will both disappear.
-
-! Missing $ inserted.
-<inserted text> 
-                $
-l.98 e_
-       {2} & 0 \\
-I've inserted a begin-math/end-math symbol since I think
-you left one out. Proceed, with fingers crossed.
-
-! Missing $ inserted.
-<inserted text> 
-                $
-l.98 e_{2} &
-             0 \\
-I've inserted something that you may have forgotten.
-(See the <inserted text> above.)
-With luck, this will get me unwedged. But if you
-really didn't forget anything, try typing `2' now; then
-my insertion and my current dilemma will both disappear.
-
-! Missing $ inserted.
-<inserted text> 
-                $
-l.99 e_
-       {3} & 4 \\
-I've inserted a begin-math/end-math symbol since I think
-you left one out. Proceed, with fingers crossed.
-
-! Missing $ inserted.
-<inserted text> 
-                $
-l.99 e_{3} &
-             4 \\
-I've inserted something that you may have forgotten.
-(See the <inserted text> above.)
-With luck, this will get me unwedged. But if you
-really didn't forget anything, try typing `2' now; then
-my insertion and my current dilemma will both disappear.
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 92--101
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 102--106
+Underfull \hbox (badness 10000) in paragraph at lines 99--100
 
  []
 
 [3]
+Underfull \hbox (badness 10000) in paragraph at lines 115--116
+
+ []
+
 ! Missing $ inserted.
 <inserted text> 
                 $
-l.107 ...n: https://en.wikipedia.org/wiki/Simplex_
+l.122 s_
+        {1} & 2 \\
+I've inserted a begin-math/end-math symbol since I think
+you left one out. Proceed, with fingers crossed.
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.122 s_{1} &
+              2 \\
+I've inserted something that you may have forgotten.
+(See the <inserted text> above.)
+With luck, this will get me unwedged. But if you
+really didn't forget anything, try typing `2' now; then
+my insertion and my current dilemma will both disappear.
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.123 s_
+        {2} & 0 \\
+I've inserted a begin-math/end-math symbol since I think
+you left one out. Proceed, with fingers crossed.
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.123 s_{2} &
+              0 \\
+I've inserted something that you may have forgotten.
+(See the <inserted text> above.)
+With luck, this will get me unwedged. But if you
+really didn't forget anything, try typing `2' now; then
+my insertion and my current dilemma will both disappear.
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.124 s_
+        {3} & 0 \\
+I've inserted a begin-math/end-math symbol since I think
+you left one out. Proceed, with fingers crossed.
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.124 s_{3} &
+              0 \\
+I've inserted something that you may have forgotten.
+(See the <inserted text> above.)
+With luck, this will get me unwedged. But if you
+really didn't forget anything, try typing `2' now; then
+my insertion and my current dilemma will both disappear.
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 117--126
+
+ []
+
+
+! LaTeX Error: There's no line here to end.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.126 ...ción 2 (tras pivote adicional)}\\[0.3cm]
+                                                  
+Your command was ignored.
+Type  I <command> <return>  to replace it with another command,
+or  <return>  to continue without it.
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 127--128
+
+ []
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.134 s_
+        {1} & 0 \\
+I've inserted a begin-math/end-math symbol since I think
+you left one out. Proceed, with fingers crossed.
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.134 s_{1} &
+              0 \\
+I've inserted something that you may have forgotten.
+(See the <inserted text> above.)
+With luck, this will get me unwedged. But if you
+really didn't forget anything, try typing `2' now; then
+my insertion and my current dilemma will both disappear.
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.135 s_
+        {2} & 2 \\
+I've inserted a begin-math/end-math symbol since I think
+you left one out. Proceed, with fingers crossed.
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.135 s_{2} &
+              2 \\
+I've inserted something that you may have forgotten.
+(See the <inserted text> above.)
+With luck, this will get me unwedged. But if you
+really didn't forget anything, try typing `2' now; then
+my insertion and my current dilemma will both disappear.
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.136 s_
+        {3} & 0 \\
+I've inserted a begin-math/end-math symbol since I think
+you left one out. Proceed, with fingers crossed.
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.136 s_{3} &
+              0 \\
+I've inserted something that you may have forgotten.
+(See the <inserted text> above.)
+With luck, this will get me unwedged. But if you
+really didn't forget anything, try typing `2' now; then
+my insertion and my current dilemma will both disappear.
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 129--138
+
+ []
+
+[4]
+Underfull \hbox (badness 10000) in paragraph at lines 163--167
+
+ []
+
+[5]
+! Missing $ inserted.
+<inserted text> 
+                $
+l.168 ...n: https://en.wikipedia.org/wiki/Simplex_
                                                   algorithm
 I've inserted a begin-math/end-math symbol since I think
 you left one out. Proceed, with fingers crossed.
@@ -845,7 +936,7 @@ you left one out. Proceed, with fingers crossed.
 ! Missing $ inserted.
 <inserted text> 
                 $
-l.108 
+l.169 
       
 I've inserted a begin-math/end-math symbol since I think
 you left one out. Proceed, with fingers crossed.
@@ -853,7 +944,7 @@ you left one out. Proceed, with fingers crossed.
 ! Missing } inserted.
 <inserted text> 
                 }
-l.108 
+l.169 
       
 I've inserted something that you may have forgotten.
 (See the <inserted text> above.)
@@ -864,7 +955,7 @@ my insertion and my current dilemma will both disappear.
 ! Extra }, or forgotten \endgroup.
 \par ...m \@noitemerr {\@@par }\fi \else {\@@par }
                                                   \fi 
-l.108 
+l.169 
       
 I've deleted a group-closing symbol because it seems to be
 spurious, as in `$x}$'. But perhaps the } is legitimate and
@@ -875,7 +966,7 @@ deleted material, e.g., by typing `I$}'.
 ! Missing $ inserted.
 <inserted text> 
                 $
-l.111 .../math.libretexts.org/Bookshelves/Applied_
+l.172 .../math.libretexts.org/Bookshelves/Applied_
                                                   Mathematics/Applied_Finite...
 I've inserted a begin-math/end-math symbol since I think
 you left one out. Proceed, with fingers crossed.
@@ -883,7 +974,7 @@ you left one out. Proceed, with fingers crossed.
 ! Missing $ inserted.
 <inserted text> 
                 $
-l.112 
+l.173 
       
 I've inserted a begin-math/end-math symbol since I think
 you left one out. Proceed, with fingers crossed.
@@ -891,7 +982,7 @@ you left one out. Proceed, with fingers crossed.
 ! Missing } inserted.
 <inserted text> 
                 }
-l.112 
+l.173 
       
 I've inserted something that you may have forgotten.
 (See the <inserted text> above.)
@@ -900,7 +991,7 @@ really didn't forget anything, try typing `2' now; then
 my insertion and my current dilemma will both disappear.
 
 
-Overfull \hbox (43.2552pt too wide) in paragraph at lines 111--112
+Overfull \hbox (43.2552pt too wide) in paragraph at lines 172--173
 \OT1/cmr/m/n/12 Disponible en: https://math.libretexts.org/Bookshelves/Applied$
 []\OML/cmm/m/it/12 athematics=Applied[]inite[]athematics[]$ 
  []
@@ -908,7 +999,7 @@ Overfull \hbox (43.2552pt too wide) in paragraph at lines 111--112
 ! Extra }, or forgotten \endgroup.
 \par ...m \@noitemerr {\@@par }\fi \else {\@@par }
                                                   \fi 
-l.112 
+l.173 
       
 I've deleted a group-closing symbol because it seems to be
 spurious, as in `$x}$'. But perhaps the } is legitimate and
@@ -916,7 +1007,7 @@ you forgot something else, as in `\hbox{$x}'. In such cases
 the way to recover is to insert both the forgotten and the
 deleted material, e.g., by typing `I$}'.
 
-[4] (./simplex_output.aux)
+[6] (./simplex_output.aux)
  ***********
 LaTeX2e <2023-11-01> patch level 1
 L3 programming layer <2024-01-22>
@@ -925,7 +1016,7 @@ L3 programming layer <2024-01-22>
 Here is how much of TeX's memory you used:
  22710 strings out of 476047
  600961 string characters out of 5792075
- 1948975 words of memory out of 5000000
+ 1945975 words of memory out of 5000000
  44376 multiletter control sequences out of 15000+600000
  563613 words of font info for 54 fonts, out of 8000000 for 9000
  85 hyphenation exceptions out of 8191
@@ -938,10 +1029,10 @@ xlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/share/texlive/t
 exmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb></usr/share/texlive/texmf-dis
 t/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/font
 s/type1/public/amsfonts/cm/cmti12.pfb>
-Output written on simplex_output.pdf (4 pages, 187412 bytes).
+Output written on simplex_output.pdf (6 pages, 194300 bytes).
 PDF statistics:
- 63 PDF objects out of 1000 (max. 8388607)
- 39 compressed objects within 1 object stream
+ 69 PDF objects out of 1000 (max. 8388607)
+ 43 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 500000)
  18 words of extra memory for PDF output out of 10000 (max. 10000000)
 

@@ -42,12 +42,12 @@ static double parse_coef(const char *text);
 // ========================
 typedef struct
 {
-    int rows;         // 1 (fila objetivo) + cons
-    int cols;         // 1 (Z) + vars + cons (holguras) + 1 (RHS)
-    double **T;       // matriz [rows][cols]
-    int *basis;       // índice de columna básica por cada fila (excepto fila 0). basis[r] = columna básica de la fila r (r>=1)
-    int entering_col; // última col que entró
-    int leaving_row;  // última fila que salió
+    int rows;                // 1 (fila objetivo) + cons
+    int cols;                // 1 (Z) + vars + cons (holguras) + 1 (RHS)
+    double **T;              // matriz [rows][cols]
+    int *basis;              // índice de columna básica por cada fila (excepto fila 0). basis[r] = columna básica de la fila r (r>=1)
+    int entering_col;        // última col que entró
+    int leaving_row;         // última fila que salió
     double BIG_M;            // valor numérico para computar (p.ej., 1e6)
     char **col_names;        // nombre por columna: "Z", "X_i", "s_i", "e_i", "a_i", "RHS"
     unsigned char *is_slack; // 1 si slack
@@ -55,9 +55,9 @@ typedef struct
     unsigned char *is_art;   // 1 si artificial
 
     // Mostrar M en tabla inicial (solo estética)
-    int show_M_in_initial_row0;  // 1 si se quiere imprimir "M" en fila 0
-    int *row0_M_sign;            // por columna: -1, 0, +1 (signo de M visible en fila 0)
-    int row0_M_rhs_sign;         // por si quisieramos mostrar M en RHS (opc.)
+    int show_M_in_initial_row0; // 1 si se quiere imprimir "M" en fila 0
+    int *row0_M_sign;           // por columna: -1, 0, +1 (signo de M visible en fila 0)
+    int row0_M_rhs_sign;        // por si quisieramos mostrar M en RHS (opc.)
 } Tableau;
 
 typedef struct
@@ -126,16 +126,17 @@ static Tableau *tableau_new(int rows, int cols)
     return tb;
 }
 
-
 static Tableau *tableau_copy(const Tableau *src)
 {
-    if (!src) return NULL;
+    if (!src)
+        return NULL;
 
     // Crear nueva tabla con mismas dimensiones
     Tableau *t = tableau_new(src->rows, src->cols);
 
     // Copiar matriz numérica
-    for (int i = 0; i < src->rows; i++) {
+    for (int i = 0; i < src->rows; i++)
+    {
         memcpy(t->T[i], src->T[i], sizeof(double) * src->cols);
     }
 
@@ -143,34 +144,40 @@ static Tableau *tableau_copy(const Tableau *src)
     memcpy(t->basis, src->basis, sizeof(int) * src->rows);
 
     // Copiar campos escalares
-    t->rows         = src->rows;
-    t->cols         = src->cols;
+    t->rows = src->rows;
+    t->cols = src->cols;
     t->entering_col = src->entering_col;
-    t->leaving_row  = src->leaving_row;
-    t->BIG_M        = src->BIG_M;
+    t->leaving_row = src->leaving_row;
+    t->BIG_M = src->BIG_M;
 
     // === Copiar nombres de columnas ===
-    if (src->col_names) {
+    if (src->col_names)
+    {
         t->col_names = (char **)calloc(src->cols, sizeof(char *));
-        for (int j = 0; j < src->cols; j++) {
-            if (src->col_names[j]) {
+        for (int j = 0; j < src->cols; j++)
+        {
+            if (src->col_names[j])
+            {
                 t->col_names[j] = strdup(src->col_names[j]);
             }
         }
     }
 
     // === Copiar flags de tipo de columna ===
-    if (src->is_slack) {
+    if (src->is_slack)
+    {
         t->is_slack = (unsigned char *)calloc(src->cols, sizeof(unsigned char));
         memcpy(t->is_slack, src->is_slack, src->cols * sizeof(unsigned char));
     }
 
-    if (src->is_sur) {
+    if (src->is_sur)
+    {
         t->is_sur = (unsigned char *)calloc(src->cols, sizeof(unsigned char));
         memcpy(t->is_sur, src->is_sur, src->cols * sizeof(unsigned char));
     }
 
-    if (src->is_art) {
+    if (src->is_art)
+    {
         t->is_art = (unsigned char *)calloc(src->cols, sizeof(unsigned char));
         memcpy(t->is_art, src->is_art, src->cols * sizeof(unsigned char));
     }
@@ -178,8 +185,8 @@ static Tableau *tableau_copy(const Tableau *src)
     // === Por ahora NO queremos mostrar M en las copias ===
     // (evitamos la lógica estética de M hasta que la queramos arreglar bien)
     t->show_M_in_initial_row0 = 0;
-    t->row0_M_sign            = NULL;
-    t->row0_M_rhs_sign        = 0;
+    t->row0_M_sign = NULL;
+    t->row0_M_rhs_sign = 0;
 
     return t;
 }
@@ -190,24 +197,35 @@ static Tableau *tableau_copy(const Tableau *src)
 static void latex_escape_and_print(FILE *f, const char *s)
 {
     // Si el nombre ya contiene $, asumimos que el usuario escribió LaTeX (ej: "$X_1$")
-    if (strchr(s, '$') != NULL) {
+    if (strchr(s, '$') != NULL)
+    {
         fputs(s, f);
         return;
     }
 
     // Si no tiene $, lo ponemos en modo matemático nosotros
     fputc('$', f);
-    for (; *s; s++) {
+    for (; *s; s++)
+    {
         char c = *s;
-        if (c == '%') {
+        if (c == '%')
+        {
             fprintf(f, "\\%%");
-        } else if (c == '&') {
+        }
+        else if (c == '&')
+        {
             fprintf(f, "\\&");
-        } else if (c == '#') {
+        }
+        else if (c == '#')
+        {
             fprintf(f, "\\#");
-        } else if (c == '$') {
+        }
+        else if (c == '$')
+        {
             fprintf(f, "\\$");
-        } else {
+        }
+        else
+        {
             // OJO: aquí NO escapamos '_' porque estamos en modo matemático y queremos subíndices
             fputc(c, f);
         }
@@ -215,13 +233,16 @@ static void latex_escape_and_print(FILE *f, const char *s)
     fputc('$', f);
 }
 
-
-
 static void tableau_free(Tableau *tb)
 {
     if (!tb)
         return;
-    if (tb->col_names){ for(int j=0;j<tb->cols;j++) free(tb->col_names[j]); free(tb->col_names); }
+    if (tb->col_names)
+    {
+        for (int j = 0; j < tb->cols; j++)
+            free(tb->col_names[j]);
+        free(tb->col_names);
+    }
     free(tb->is_slack);
     free(tb->is_sur);
     free(tb->is_art);
@@ -344,12 +365,19 @@ static Tableau *build_initial_tableau_from_inputs(int vars, int cons, int *unsup
 {
     // 1) Primera pasada: contar slacks, excesos, artificiales
     int cnt_slack = 0, cnt_sur = 0, cnt_art = 0;
-    for (int i = 0; i < cons; i++) {
+    for (int i = 0; i < cons; i++)
+    {
         GtkWidget *combo = g_ptr_array_index(combo_signs, i);
         int sign = gtk_combo_box_get_active(GTK_COMBO_BOX(combo)); // 0<=, 1=, 2>=
-        if (sign == 0) cnt_slack++;
-        else if (sign == 1) cnt_art++;          // '=' -> artificial
-        else if (sign == 2) { cnt_sur++; cnt_art++; } // '>=' -> exceso + artificial
+        if (sign == 0)
+            cnt_slack++;
+        else if (sign == 1)
+            cnt_art++; // '=' -> artificial
+        else if (sign == 2)
+        {
+            cnt_sur++;
+            cnt_art++;
+        } // '>=' -> exceso + artificial
     }
 
     // 2) Definir dimensiones con todas las columnas
@@ -360,41 +388,57 @@ static Tableau *build_initial_tableau_from_inputs(int vars, int cons, int *unsup
 
     // Guarda M (numérico para cómputo) y meta
     tb->BIG_M = 1e6; // puedes exponerlo en la UI si deseas
-    tb->col_names = (char**)calloc(cols, sizeof(char*));
-    tb->is_slack = (unsigned char*)calloc(cols, 1);
-    tb->is_sur   = (unsigned char*)calloc(cols, 1);
-    tb->is_art   = (unsigned char*)calloc(cols, 1);
-    tb->row0_M_sign = (int*)calloc(cols, sizeof(int));
+    tb->col_names = (char **)calloc(cols, sizeof(char *));
+    tb->is_slack = (unsigned char *)calloc(cols, 1);
+    tb->is_sur = (unsigned char *)calloc(cols, 1);
+    tb->is_art = (unsigned char *)calloc(cols, 1);
+    tb->row0_M_sign = (int *)calloc(cols, sizeof(int));
     tb->show_M_in_initial_row0 = 1; // queremos mostrar M en la tabla inicial
 
     // 3) Nombres de columnas
-    int cZ = 0; tb->col_names[cZ] = strdup("Z");
+    int cZ = 0;
+    tb->col_names[cZ] = strdup("Z");
     int c = 1;
-    for (int j = 0; j < vars; j++) {
+    for (int j = 0; j < vars; j++)
+    {
         const char *vn = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_var_names, j)));
         tb->col_names[c++] = strdup(vn && *vn ? vn : "x");
     }
     int start_slack = c;
-    for (int s = 0; s < cnt_slack; s++) {
-        char buf[32]; snprintf(buf, sizeof(buf), "$s_{%d}$", s+1);
+    for (int s = 0; s < cnt_slack; s++)
+    {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "$s_{%d}$", s + 1);
 
-        tb->col_names[c] = strdup(buf); tb->is_slack[c] = 1; c++;
+        tb->col_names[c] = strdup(buf);
+        tb->is_slack[c] = 1;
+        c++;
     }
     int start_sur = c;
-    for (int e = 0; e < cnt_sur; e++) {
-        char buf[16]; snprintf(buf, sizeof(buf), "$e_{%d}$", e+1);
-        tb->col_names[c] = strdup(buf); tb->is_sur[c] = 1; c++;
+    for (int e = 0; e < cnt_sur; e++)
+    {
+        char buf[16];
+        snprintf(buf, sizeof(buf), "$e_{%d}$", e + 1);
+        tb->col_names[c] = strdup(buf);
+        tb->is_sur[c] = 1;
+        c++;
     }
     int start_art = c;
-    for (int a = 0; a < cnt_art; a++) {
-        char buf[16]; snprintf(buf, sizeof(buf), "$a_{%d}$", a+1);
-        tb->col_names[c] = strdup(buf); tb->is_art[c] = 1; c++;
+    for (int a = 0; a < cnt_art; a++)
+    {
+        char buf[16];
+        snprintf(buf, sizeof(buf), "$a_{%d}$", a + 1);
+        tb->col_names[c] = strdup(buf);
+        tb->is_art[c] = 1;
+        c++;
     }
-    int cRHS = cols - 1; tb->col_names[cRHS] = strdup(" ");
+    int cRHS = cols - 1;
+    tb->col_names[cRHS] = strdup(" ");
 
     // 4) Fila 0: Z y FO
     tb->T[0][0] = 1.0;
-    for (int j = 0; j < vars; j++) {
+    for (int j = 0; j < vars; j++)
+    {
         const char *coef_str = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_obj_coefs, j)));
         double cj = parse_coef(coef_str);
         tb->T[0][1 + j] = -cj;
@@ -405,44 +449,53 @@ static Tableau *build_initial_tableau_from_inputs(int vars, int cons, int *unsup
     int idx_coef = 0;
     int pos_slack = 0, pos_sur = 0, pos_art = 0;
 
-    for (int i = 0; i < cons; i++) {
+    for (int i = 0; i < cons; i++)
+    {
         // Coeficientes de x
-        for (int j = 0; j < vars; j++) {
+        for (int j = 0; j < vars; j++)
+        {
             const char *a_str = gtk_entry_get_text(GTK_ENTRY(g_ptr_array_index(entry_con_coefs, idx_coef++)));
-            tb->T[i+1][1 + j] = parse_coef(a_str);
+            tb->T[i + 1][1 + j] = parse_coef(a_str);
         }
         // RHS
         GtkWidget *rhs = g_ptr_array_index(entry_rhs_list, i);
-        tb->T[i+1][cRHS] = parse_coef(gtk_entry_get_text(GTK_ENTRY(rhs)));
+        tb->T[i + 1][cRHS] = parse_coef(gtk_entry_get_text(GTK_ENTRY(rhs)));
 
         // Signo
         GtkWidget *combo = g_ptr_array_index(combo_signs, i);
         int sign = gtk_combo_box_get_active(GTK_COMBO_BOX(combo)); // 0<=,1=,2>=
 
-        if (sign == 0) {
+        if (sign == 0)
+        {
             // <= : slack
             int col_s = start_slack + (pos_slack++);
-            tb->T[i+1][col_s] = 1.0;
-            tb->basis[i+1] = col_s; // base inicial
-        } else if (sign == 1) {
+            tb->T[i + 1][col_s] = 1.0;
+            tb->basis[i + 1] = col_s; // base inicial
+        }
+        else if (sign == 1)
+        {
             // = : artificial
             int col_a = start_art + (pos_art++);
-            tb->T[i+1][col_a] = 1.0;
-            tb->basis[i+1] = col_a;
+            tb->T[i + 1][col_a] = 1.0;
+            tb->basis[i + 1] = col_a;
             // penalización M en fila 0
-            tb->row0_M_sign[col_a] = (opt_type==0 ? +1 : -1); // Max:+M, Min:-M
-            tb->T[0][col_a] += (opt_type==0 ? +tb->BIG_M : -tb->BIG_M);
-        } else if (sign == 2) {
+            tb->row0_M_sign[col_a] = (opt_type == 0 ? +1 : -1); // Max:+M, Min:-M
+            tb->T[0][col_a] += (opt_type == 0 ? +tb->BIG_M : -tb->BIG_M);
+        }
+        else if (sign == 2)
+        {
             // >= : exceso -1 y artificial +1
             int col_e = start_sur + (pos_sur++);
             int col_a = start_art + (pos_art++);
-            tb->T[i+1][col_e] = -1.0;
-            tb->T[i+1][col_a] = 1.0;
-            tb->basis[i+1] = col_a;
+            tb->T[i + 1][col_e] = -1.0;
+            tb->T[i + 1][col_a] = 1.0;
+            tb->basis[i + 1] = col_a;
             // penalización M en fila 0
-            tb->row0_M_sign[col_a] = (opt_type==0 ? +1 : -1);
-            tb->T[0][col_a] += (opt_type==0 ? +tb->BIG_M : -tb->BIG_M);
-        } else {
+            tb->row0_M_sign[col_a] = (opt_type == 0 ? +1 : -1);
+            tb->T[0][col_a] += (opt_type == 0 ? +tb->BIG_M : -tb->BIG_M);
+        }
+        else
+        {
             *unsupported_sign_found = 1;
         }
     }
@@ -454,18 +507,23 @@ static Tableau *build_initial_tableau_from_inputs(int vars, int cons, int *unsup
 // (para método de la Gran M)
 static void canonicalize_artificials(Tableau *tb)
 {
-    if (!tb || !tb->is_art) return;
+    if (!tb || !tb->is_art)
+        return;
 
     int rows = tb->rows;
     int cols = tb->cols;
 
-    for (int r = 1; r < rows; r++) {
+    for (int r = 1; r < rows; r++)
+    {
         int bc = tb->basis[r];
-        if (bc >= 0 && bc < cols && tb->is_art[bc]) {
+        if (bc >= 0 && bc < cols && tb->is_art[bc])
+        {
             double c0 = tb->T[0][bc];
-            if (fabs(c0) > EPS) {
+            if (fabs(c0) > EPS)
+            {
                 // fila0 = fila0 - c0 * fila_r
-                for (int j = 0; j < cols; j++) {
+                for (int j = 0; j < cols; j++)
+                {
                     tb->T[0][j] -= c0 * tb->T[r][j];
                 }
             }
@@ -625,7 +683,8 @@ static int detect_multiple_solutions(const Tableau *tb)
 // Devuelve 1 si existe alguna variable artificial básica con RHS > 0
 static int tableau_has_positive_artificial(const Tableau *tb, int *out_row, int *out_col, double *out_val)
 {
-    if (!tb || !tb->is_art) return 0;
+    if (!tb || !tb->is_art)
+        return 0;
 
     int rows = tb->rows;
     int cols = tb->cols;
@@ -638,9 +697,12 @@ static int tableau_has_positive_artificial(const Tableau *tb, int *out_row, int 
             double rhs = tb->T[i][cols - 1];
             if (rhs > EPS)
             {
-                if (out_row) *out_row = i;
-                if (out_col) *out_col = bc;
-                if (out_val) *out_val = rhs;
+                if (out_row)
+                    *out_row = i;
+                if (out_col)
+                    *out_col = bc;
+                if (out_val)
+                    *out_val = rhs;
                 return 1;
             }
         }
@@ -742,7 +804,7 @@ static SimplexRun *simplex_solve(Tableau *init, int vars, int cons, int is_max, 
 
         if (tableau_has_positive_artificial(tb, &r_art, &c_art, &val_art))
         {
-            run->status = 2;   // 2 = No factible
+            run->status = 2; // 2 = No factible
         }
     }
 
@@ -757,7 +819,6 @@ static SimplexRun *simplex_solve(Tableau *init, int vars, int cons, int is_max, 
         }
     }
     run->z_value = run->final->T[0][run->final->cols - 1];
-
 
     /* Detectar múltiples soluciones sobre la tabla final */
     run->has_multiple = detect_multiple_solutions(run->final);
@@ -837,27 +898,43 @@ static void latex_print_table(FILE *f, const Tableau *tb, int vars, int cons,
     //  - Z y RHS siempre.
     //  - Variables de decisión y slacks y excesos siempre.
     //  - Artificiales SOLO si están en la base actual.
-    int *visible = (int*)calloc(tb->cols, sizeof(int));
-    for (int j = 0; j < tb->cols; j++) {
-        if (j == 0 || j == tb->cols-1) { visible[j] = 1; continue; }
-        if (tb->is_art && tb->is_art[j]) {
+    int *visible = (int *)calloc(tb->cols, sizeof(int));
+    for (int j = 0; j < tb->cols; j++)
+    {
+        if (j == 0 || j == tb->cols - 1)
+        {
+            visible[j] = 1;
+            continue;
+        }
+        if (tb->is_art && tb->is_art[j])
+        {
             int in_basis = 0;
-            for (int i = 1; i < tb->rows; i++) if (tb->basis[i] == j) { in_basis = 1; break; }
+            for (int i = 1; i < tb->rows; i++)
+                if (tb->basis[i] == j)
+                {
+                    in_basis = 1;
+                    break;
+                }
             visible[j] = in_basis;
-        } else {
+        }
+        else
+        {
             visible[j] = 1;
         }
     }
 
     // --- Razones (si aplica) ---
-    if (show_ratio && ratio_col >= 0) {
+    if (show_ratio && ratio_col >= 0)
+    {
         fprintf(f, "\\\\[0.2cm]\n");
         fprintf(f, "Cálculo de razones de valores positivos de la columna %d: \\\\\n\n", ratio_col);
 
         fprintf(f, "\\begin{tabular}{lr}\\toprule Fila & Razón \\\\\\midrule\n");
-        for (int i = 1; i < tb->rows; i++) {
+        for (int i = 1; i < tb->rows; i++)
+        {
             double a = tb->T[i][ratio_col];
-            if (a > EPS) {
+            if (a > EPS)
+            {
                 double rhs = tb->T[i][tb->cols - 1];
                 double r = rhs / a;
                 fprintf(f, "%d & %.6g \\\\\n", i, r);
@@ -865,20 +942,24 @@ static void latex_print_table(FILE *f, const Tableau *tb, int vars, int cons,
         }
         fprintf(f, "\\bottomrule\\end{tabular}\n\n\\vspace{0.4cm}\n");
 
-        if (highlight_row >= 0) {
+        if (highlight_row >= 0)
+        {
             double piv_val = tb->T[highlight_row][ratio_col];
             fprintf(f, "\\noindent Con %.6g como pivote en columna %d.\\\\\n", piv_val, ratio_col);
-        } else {
+        }
+        else
+        {
             fprintf(f, "\\noindent No se encuentran candidatos a pivote en columna %d.\\\\\n", ratio_col);
         }
     }
 
     // Decidir si la tabla es "ancha"
-    int is_wide = (tb->cols > 10);  // umbral de columnas para considerar "ancha"
+    int is_wide = (tb->cols > 10); // umbral de columnas para considerar "ancha"
 
     fprintf(f, "\\begin{center}\n");
 
-    if (is_wide) {
+    if (is_wide)
+    {
         // Letra más pequeña y columnas más juntitas
         fprintf(f, "\\scriptsize\n");
         fprintf(f, "\\setlength{\\tabcolsep}{2pt}\n");
@@ -891,27 +972,35 @@ static void latex_print_table(FILE *f, const Tableau *tb, int vars, int cons,
     // contar visibles
     int vcount = 0;
     for (int j = 0; j < tb->cols; j++)
-        if (visible[j]) vcount++;
+        if (visible[j])
+            vcount++;
 
     fprintf(f, "\\begin{tabular}{");
-    for (int j = 0; j < vcount; j++) fprintf(f, "r");
+    for (int j = 0; j < vcount; j++)
+        fprintf(f, "r");
     fprintf(f, "}\n\\toprule\n");
 
     // Encabezados
     int printed = 0;
-    for (int j = 0; j < tb->cols; j++) {
-        if (!visible[j]) continue;
-        if (printed) fprintf(f, " & ");
+    for (int j = 0; j < tb->cols; j++)
+    {
+        if (!visible[j])
+            continue;
+        if (printed)
+            fprintf(f, " & ");
 
         const char *name = (tb->col_names && tb->col_names[j])
-                        ? tb->col_names[j]
-                        : (j==0 ? "Z" : (j==tb->cols-1 ? " " : "col"));
+                               ? tb->col_names[j]
+                               : (j == 0 ? "Z" : (j == tb->cols - 1 ? " " : "col"));
 
-        if (j == highlight_col) {
+        if (j == highlight_col)
+        {
             fprintf(f, "\\cellcolor{yellow!40}\\textbf{");
             latex_escape_and_print(f, name);
             fprintf(f, "}");
-        } else {
+        }
+        else
+        {
             fprintf(f, "\\textbf{");
             latex_escape_and_print(f, name);
             fprintf(f, "}");
@@ -921,25 +1010,32 @@ static void latex_print_table(FILE *f, const Tableau *tb, int vars, int cons,
     fprintf(f, " \\\\\\midrule\n");
 
     // Filas
-    for (int i = 0; i < tb->rows; i++) {
+    for (int i = 0; i < tb->rows; i++)
+    {
         printed = 0;
-        for (int j = 0; j < tb->cols; j++) {
-            if (!visible[j]) continue;
+        for (int j = 0; j < tb->cols; j++)
+        {
+            if (!visible[j])
+                continue;
 
-            if (printed) fprintf(f, " & ");
+            if (printed)
+                fprintf(f, " & ");
             int is_pivot = (i == highlight_row && j == highlight_col);
             double v = tb->T[i][j];
 
-            if (is_pivot) {
+            if (is_pivot)
+            {
                 fprintf(f, "\\cellcolor{yellow!40}");
             }
 
             // --- Impresión especial para Big-M en la fila 0 ---
-            if (i == 0 && tb->BIG_M > 0.0) {
+            if (i == 0 && tb->BIG_M > 0.0)
+            {
                 // Intentar escribir v como: v ≈ rest + k * M
                 double k = v / tb->BIG_M;
                 // Si la parte con M es "grande", la mostramos
-                if (fabs(k) > 0.5) {
+                if (fabs(k) > 0.5)
+                {
                     // redondeamos k a 3 decimales para que se vea bonito
                     double k_rounded = round(k * 1000.0) / 1000.0;
                     double rest = v - k_rounded * tb->BIG_M;
@@ -947,29 +1043,38 @@ static void latex_print_table(FILE *f, const Tableau *tb, int vars, int cons,
                     int printed = 0;
 
                     // Parte numérica (resto)
-                    if (fabs(rest) > 1e-6) {
+                    if (fabs(rest) > 1e-6)
+                    {
                         fprintf(f, "%.6g", rest);
                         printed = 1;
                     }
 
                     // Parte con M
-                    if (fabs(k_rounded) > 1e-6) {
-                        if (printed) {
+                    if (fabs(k_rounded) > 1e-6)
+                    {
+                        if (printed)
+                        {
                             fprintf(f, " %c ", (k_rounded > 0.0 ? '+' : '-'));
-                        } else if (k_rounded < 0.0) {
+                        }
+                        else if (k_rounded < 0.0)
+                        {
                             fprintf(f, "-");
                         }
 
                         double abs_k = fabs(k_rounded);
-                        if (fabs(abs_k - 1.0) < 1e-6) {
+                        if (fabs(abs_k - 1.0) < 1e-6)
+                        {
                             // coeficiente 1 -> solo "M"
                             fprintf(f, "M");
-                        } else {
+                        }
+                        else
+                        {
                             fprintf(f, "%.3g M", abs_k);
                         }
                     }
 
-                    if (!printed && fabs(k_rounded) <= 1e-6) {
+                    if (!printed && fabs(k_rounded) <= 1e-6)
+                    {
                         // valor realmente pequeño
                         fprintf(f, "0");
                     }
@@ -992,7 +1097,8 @@ static void latex_print_table(FILE *f, const Tableau *tb, int vars, int cons,
 
     fprintf(f, "\\bottomrule\n\\end{tabular}\n");
 
-    if (is_wide) {
+    if (is_wide)
+    {
         // cerrar el \resizebox{...}{...}{ ... }
         fprintf(f, "}\n");
     }
@@ -1002,11 +1108,10 @@ static void latex_print_table(FILE *f, const Tableau *tb, int vars, int cons,
     free(visible);
 }
 
-
 static void latex_print_all_variables(FILE *f, const Tableau *tb,
                                       const char **var_names, int vars, int cons)
 {
-    (void)cons; 
+    (void)cons;
 
     fprintf(f, "\\section*{Valores de todas las variables}\n");
     fprintf(f, "\\begin{tabular}{lr}\\toprule Variable & Valor \\\\ \\midrule\n");
@@ -1029,7 +1134,7 @@ static void latex_print_all_variables(FILE *f, const Tableau *tb,
 
     // 2. Holguras s_i y excesos e_i
     int slack_idx = 0;
-    int sur_idx   = 0;
+    int sur_idx = 0;
 
     // Recorremos todas las columnas “internas” (después de las X y antes de RHS)
     for (int j = vars + 1; j < tb->cols - 1; j++)
@@ -1058,12 +1163,10 @@ static void latex_print_all_variables(FILE *f, const Tableau *tb,
             double out = (fabs(val) < EPS) ? 0.0 : val;
             fprintf(f, "e_{%d} & %.6g \\\\\n", sur_idx, out);
         }
-       
     }
 
     fprintf(f, "\\bottomrule\\end{tabular}\\\\[0.3cm]\n");
 }
-
 
 // ========================
 //  HANDLERS GUI
@@ -1609,12 +1712,15 @@ void write_file(int vars, int cons, GtkWidget *box_model, int show_tables, const
     fprintf(f, "\\pgfplotsset{compat=1.18}\n");
 
     // UMBRAL para considerar "muchas columnas"
-    int ancho_grande = (initial->cols > 10);  // cantidad de columnas
+    int ancho_grande = (initial->cols > 10); // cantidad de columnas
 
-    if (ancho_grande) {
+    if (ancho_grande)
+    {
         // Documento completo en horizontal
         fprintf(f, "\\geometry{margin=0.8in, landscape}\n");
-    } else {
+    }
+    else
+    {
         // Documento normal en vertical
         fprintf(f, "\\geometry{margin=0.8in}\n");
     }
@@ -1664,7 +1770,7 @@ void write_file(int vars, int cons, GtkWidget *box_model, int show_tables, const
             "\\end{itemize}\n\n"
 
             "\\bigskip\n");
-    
+
     // Explicacion Gran M
     fprintf(f, "\\subsection*{Método de la Gran M}\n");
     fprintf(f,
@@ -1865,26 +1971,25 @@ void write_file(int vars, int cons, GtkWidget *box_model, int show_tables, const
         fprintf(f, "\\textbf{El problema es no factible.}\\\\[0.3cm]\n");
 
         fprintf(f,
-            "El modelo se resolvió utilizando el \\textit{método de la Gran M}, "
-            "introduciendo variables artificiales para poder construir una base inicial.\\\\[0.2cm]\n");
+                "El modelo se resolvió utilizando el \\textit{método de la Gran M}, "
+                "introduciendo variables artificiales para poder construir una base inicial.\\\\[0.2cm]\n");
 
         fprintf(f,
-            "En la \\textbf{tabla final}, después de que ya no hay columnas candidatas para entrar en la base "
-            "(es decir, ya no hay coeficientes negativos en la fila de la función objetivo para el caso de "
-            "maximización), se observa que al menos una \\textbf{variable artificial} sigue siendo básica con "
-            "un valor positivo en el término independiente (RHS).\\\\[0.2cm]\n");
-
-
-        fprintf(f,
-            "Desde el punto de vista geométrico, esto implica que no hay ningún punto en el espacio de variables "
-            "que cumpla con todas las desigualdades (o igualdades) planteadas al mismo tiempo. "
-            "Por ello, no es posible calcular un valor óptimo de la función objetivo.\\\\[0.3cm]\n");
+                "En la \\textbf{tabla final}, después de que ya no hay columnas candidatas para entrar en la base "
+                "(es decir, ya no hay coeficientes negativos en la fila de la función objetivo para el caso de "
+                "maximización), se observa que al menos una \\textbf{variable artificial} sigue siendo básica con "
+                "un valor positivo en el término independiente (RHS).\\\\[0.2cm]\n");
 
         fprintf(f,
-            "Posibles causas típicas de este comportamiento incluyen: restricciones contradictorias entre sí "
-            "(por ejemplo, exigir simultáneamente que una variable sea mayor o igual que un valor y, al mismo tiempo, "
-            "menor o igual que otro valor incompatible), errores en signos, o en la formulación numérica de los parámetros "
-            "del modelo. Se recomienda revisar cuidadosamente las restricciones originales.\\\\[0.3cm]\n");
+                "Desde el punto de vista geométrico, esto implica que no hay ningún punto en el espacio de variables "
+                "que cumpla con todas las desigualdades (o igualdades) planteadas al mismo tiempo. "
+                "Por ello, no es posible calcular un valor óptimo de la función objetivo.\\\\[0.3cm]\n");
+
+        fprintf(f,
+                "Posibles causas típicas de este comportamiento incluyen: restricciones contradictorias entre sí "
+                "(por ejemplo, exigir simultáneamente que una variable sea mayor o igual que un valor y, al mismo tiempo, "
+                "menor o igual que otro valor incompatible), errores en signos, o en la formulación numérica de los parámetros "
+                "del modelo. Se recomienda revisar cuidadosamente las restricciones originales.\\\\[0.3cm]\n");
     }
     else
     {
@@ -1925,7 +2030,7 @@ void write_file(int vars, int cons, GtkWidget *box_model, int show_tables, const
         }
     }
     // === GRAFICO PARA CASO DE 2 VARIABLES ===
-    if (vars == 2)
+    if (vars == 2 && run->status == 0)
     {
         fprintf(f, "\\section*{Gráfico de la región factible (solo para 2 variables)}\n");
         fprintf(f, "A continuación se muestra la región factible en el plano $(x_1, x_2)$ "
